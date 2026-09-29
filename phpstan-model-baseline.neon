@@ -1,0 +1,319 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\Assertion constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/Assertion.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/AssertionTupleKey.php
+
+		-
+			message: '#^Parameter \$conditions of class Curentis\\OpenFga\\Model\\AuthorizationModel constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/AuthorizationModel.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ConsistencyPreference\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/BatchCheckBody.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\BatchCheckItem constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/BatchCheckItem.php
+
+		-
+			message: '#^Parameter \$result of class Curentis\\OpenFga\\Model\\BatchCheckResponse constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/BatchCheckResponse.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\CheckBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/CheckBody.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/CheckError.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\InternalErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/CheckError.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/CheckRequestTupleKey.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Computed.php
+
+		-
+			message: '#^Parameter \$parameters of class Curentis\\OpenFga\\Model\\Condition constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/Condition.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ContextualTupleKeys.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/CreateStoreRequest.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Difference.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/DirectUserset.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ExpandRequestTupleKey.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/FgaObject.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\AuthErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/ForbiddenResponse.php
+
+		-
+			message: '#^Cannot call method format\(\) on DateTimeImmutable\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/Model/GetStoreResponse.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\InternalErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/InternalErrorMessageResponse.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\ListObjectsBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/ListObjectsBody.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ListObjectsResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ListStoresResponse.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\ListUsersBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/ListUsersBody.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ListUsersResponse.php
+
+		-
+			message: '#^Parameter \$relations of class Curentis\\OpenFga\\Model\\Metadata constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/Metadata.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Nodes.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\NotFoundErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/PathUnknownErrorMessageResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/ReadResponse.php
+
+		-
+			message: '#^Parameter \$wildcard of class Curentis\\OpenFga\\Model\\RelationReference constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/RelationReference.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\RelationshipCondition constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/RelationshipCondition.php
+
+		-
+			message: '#^Cannot call method format\(\) on DateTimeImmutable\|null\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/Model/Store.php
+
+		-
+			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\StreamedListObjectsBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/StreamedListObjectsBody.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/StreamedListObjectsResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/TupleKeyWithoutCondition.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/TupleToUserset.php
+
+		-
+			message: '#^Parameter \$relations of class Curentis\\OpenFga\\Model\\TypeDefinition constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/TypeDefinition.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/TypedWildcard.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/UnauthenticatedResponse.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\UnprocessableContentErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/UnprocessableContentMessageResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Users.php
+
+		-
+			message: '#^Parameter \$thisUserset of class Curentis\\OpenFga\\Model\\Userset constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/Userset.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/UsersetTreeDifference.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/UsersetTreeTupleToUserset.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/UsersetUser.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Usersets.php
+
+		-
+			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: src/Model/ValidationErrorMessageResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/Wildcard.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/WriteAssertionsBody.php
+
+		-
+			message: '#^Parameter \$conditions of class Curentis\\OpenFga\\Model\\WriteAuthorizationModelBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Model/WriteAuthorizationModelBody.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/WriteAuthorizationModelResponse.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Model/WriteResponse.php

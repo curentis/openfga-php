@@ -1,0 +1,117 @@
+{
+    "name": "curentis/openfga-php",
+    "description": "PHP SDK for OpenFGA — fine-grained, relationship-based authorization (Zanzibar-style).",
+    "license": "Apache-2.0",
+    "type": "library",
+    "keywords": [
+        "openfga",
+        "authorization",
+        "fga",
+        "rebac",
+        "zanzibar",
+        "access-control",
+        "permissions",
+        "sdk"
+    ],
+    "homepage": "https://github.com/curentis/openfga-php",
+    "support": {
+        "issues": "https://github.com/curentis/openfga-php/issues",
+        "source": "https://github.com/curentis/openfga-php",
+        "security": "https://github.com/curentis/openfga-php/security/policy"
+    },
+    "require": {
+        "php": "^8.3",
+        "ext-json": "*",
+        "php-http/discovery": "^1.19",
+        "psr/clock": "^1.0",
+        "psr/http-client": "^1.0",
+        "psr/http-client-implementation": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-factory-implementation": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/simple-cache": "^2.0 || ^3.0"
+    },
+    "require-dev": {
+        "ergebnis/composer-normalize": "^2.44",
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "guzzlehttp/guzzle": "^7.9",
+        "league/openapi-psr7-validator": "^0.22",
+        "nyholm/psr7": "^1.8",
+        "php-http/mock-client": "^1.6",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^12.0",
+        "symfony/http-client": "^7.1",
+        "vimeo/psalm": "^6.19"
+    },
+    "suggest": {
+        "guzzlehttp/guzzle": "A PSR-18 HTTP client (any PSR-18 client works)",
+        "symfony/cache": "PSR-16 cache to share OAuth tokens across PHP-FPM requests",
+        "symfony/http-client": "A PSR-18 HTTP client with true streaming support"
+    },
+    "autoload": {
+        "psr-4": {
+            "Curentis\\OpenFga\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Curentis\\OpenFga\\Tests\\": "tests/",
+            "Curentis\\OpenFga\\Tools\\": "tools/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true,
+            "php-http/discovery": false
+        },
+        "audit": {
+            "abandoned": "fail"
+        },
+        "platform": {
+            "php": "8.3.16"
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "check": [
+            "@composer validate --strict",
+            "@composer normalize --dry-run",
+            "@workflows",
+            "@cs",
+            "@phpstan",
+            "@psalm",
+            "@codegen:check",
+            "@test:architecture",
+            "@test:unit",
+            "@test:contract"
+        ],
+        "check:bootstrap": [
+            "@composer validate --strict",
+            "@cs",
+            "@phpstan",
+            "@psalm",
+            "@test:unit"
+        ],
+        "codegen": "@php tools/codegen/generate.php",
+        "codegen:check": "@php tools/codegen/generate.php --check",
+        "cs": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "psalm": "@php tools/run-psalm.php",
+        "psalm:taint": "psalm --no-cache --taint-analysis --report=psalm-taint.sarif",
+        "test:architecture": "phpunit --testsuite architecture",
+        "test:contract": "phpunit --testsuite contract",
+        "test:integration": "phpunit --testsuite integration",
+        "test:unit": "phpunit --testsuite unit",
+        "test:unit:coverage": [
+            "phpunit --testsuite unit --coverage-clover build/clover.xml --log-junit build/junit.xml",
+            "@php tools/coverage-check.php build/clover.xml 90"
+        ],
+        "workflows": [
+            "@php tools/check-workflows.php",
+            "@php tools/validate-supported-php.php"
+        ]
+    }
+}
