@@ -11,7 +11,6 @@ use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteTupleResult;
-use Curentis\OpenFga\Exception\FgaException;
 
 /**
  * @internal
@@ -51,7 +50,7 @@ final class WriteRunner
                     $headers + ['X-OpenFGA-Client-Method' => 'Write'],
                 );
                 $tupleResults = array_merge($tupleResults, $this->successResults($chunk));
-            } catch (FgaException $exception) {
+            } catch (\Throwable $exception) {
                 $tupleResults = array_merge($tupleResults, $this->failureResults($chunk, $exception));
             }
         }

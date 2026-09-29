@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Credentials;
 
-use Curentis\OpenFga\Exception\FgaApiAuthenticationException;
-use Curentis\OpenFga\Exception\FgaApiException;
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
 use Curentis\OpenFga\Http\ErrorMapper;
 use Curentis\OpenFga\Http\JsonBody;
@@ -129,45 +127,23 @@ final class TokenProvider
 
     private function mapTokenError(\Psr\Http\Message\ResponseInterface $response): FgaTokenExchangeException
     {
-        try {
-            $mapped = $this->errorMapper->map('POST', '/oauth/token', null, $response);
-        } catch (FgaApiException $exception) {
-            if ($exception instanceof FgaApiAuthenticationException) {
-                return new FgaTokenExchangeException(
-                    $exception->getMessage(),
-                    $exception->statusCode,
-                    $exception->apiErrorCode,
-                    $exception->apiErrorMessage,
-                    $exception->requestId,
-                    $exception->method,
-                    $exception->endpoint,
-                    $exception->storeId,
-                    $exception->responseHeaders,
-                    IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                    $this->credentials->apiAudience,
-                    $this->credentials->clientId,
-                    $exception,
-                );
-            }
+        $exception = $this->errorMapper->map('POST', '/oauth/token', null, $response);
 
-            return new FgaTokenExchangeException(
-                $exception->getMessage(),
-                $exception->statusCode,
-                $exception->apiErrorCode,
-                $exception->apiErrorMessage,
-                $exception->requestId,
-                $exception->method,
-                $exception->endpoint,
-                $exception->storeId,
-                $exception->responseHeaders,
-                IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                $this->credentials->apiAudience,
-                $this->credentials->clientId,
-                $exception,
-            );
-        }
-
-        throw new \LogicException('Unreachable');
+        return new FgaTokenExchangeException(
+            $exception->getMessage(),
+            $exception->statusCode,
+            $exception->apiErrorCode,
+            $exception->apiErrorMessage,
+            $exception->requestId,
+            $exception->method,
+            $exception->endpoint,
+            $exception->storeId,
+            $exception->responseHeaders,
+            IssuerUrl::normalize($this->credentials->apiTokenIssuer),
+            $this->credentials->apiAudience,
+            $this->credentials->clientId,
+            $exception,
+        );
     }
 
     private function cacheKey(): string

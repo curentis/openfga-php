@@ -13,3 +13,7 @@ parameters:
             - tools/codegen/*
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true
+    ignoreErrors:
+        -
+            identifier: notIdentical.alwaysTrue
+            path: src/Model/*

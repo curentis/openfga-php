@@ -7,12 +7,6 @@ parameters:
 			path: src/Model/Assertion.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/AssertionTupleKey.php
-
-		-
 			message: '#^Parameter \$conditions of class Curentis\\OpenFga\\Model\\AuthorizationModel constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
@@ -37,58 +31,10 @@ parameters:
 			path: src/Model/CheckBody.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/CheckRequestTupleKey.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Computed.php
-
-		-
 			message: '#^Parameter \$parameters of class Curentis\\OpenFga\\Model\\Condition constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Model/Condition.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ContextualTupleKeys.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/CreateStoreRequest.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Difference.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/DirectUserset.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ExpandRequestTupleKey.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/FgaObject.php
 
 		-
 			message: '#^Cannot call method format\(\) on DateTimeImmutable\|null\.$#'
@@ -103,46 +49,16 @@ parameters:
 			path: src/Model/ListObjectsBody.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ListObjectsResponse.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ListStoresResponse.php
-
-		-
 			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\ListUsersBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Model/ListUsersBody.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ListUsersResponse.php
-
-		-
 			message: '#^Parameter \$relations of class Curentis\\OpenFga\\Model\\Metadata constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Model/Metadata.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Nodes.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/ReadResponse.php
 
 		-
 			message: '#^Parameter \$wildcard of class Curentis\\OpenFga\\Model\\RelationReference constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
@@ -169,40 +85,10 @@ parameters:
 			path: src/Model/StreamedListObjectsBody.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/StreamedListObjectsResponse.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/TupleKeyWithoutCondition.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/TupleToUserset.php
-
-		-
 			message: '#^Parameter \$relations of class Curentis\\OpenFga\\Model\\TypeDefinition constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Model/TypeDefinition.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/TypedWildcard.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Users.php
 
 		-
 			message: '#^Parameter \$thisUserset of class Curentis\\OpenFga\\Model\\Userset constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
@@ -211,55 +97,7 @@ parameters:
 			path: src/Model/Userset.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/UsersetTreeDifference.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/UsersetTreeTupleToUserset.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/UsersetUser.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Usersets.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/Wildcard.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/WriteAssertionsBody.php
-
-		-
 			message: '#^Parameter \$conditions of class Curentis\\OpenFga\\Model\\WriteAuthorizationModelBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Model/WriteAuthorizationModelBody.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/WriteAuthorizationModelResponse.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: src/Model/WriteResponse.php
