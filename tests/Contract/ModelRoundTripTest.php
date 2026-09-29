@@ -37,6 +37,7 @@ final class ModelRoundTripTest extends TestCase
             }
             /** @var array<string, mixed> $example */
             $example = $schema['example'];
+            /** @psalm-suppress UndefinedClass */
             $class = 'Curentis\\OpenFga\\Model\\' . NameConverter::schemaToClassName($name);
             if (!class_exists($class) || !method_exists($class, 'fromArray')) {
                 continue;

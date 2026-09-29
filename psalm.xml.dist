@@ -14,9 +14,9 @@
         <directory name="tools"/>
         <ignoreFiles>
             <directory name="vendor"/>
-            <!-- Generated models: PHPStan + baseline; Psalm focuses on hand-written src. -->
             <directory name="src/Model"/>
             <directory name="tools/codegen"/>
+            <directory name="tests/Unit/Tools/Codegen"/>
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
