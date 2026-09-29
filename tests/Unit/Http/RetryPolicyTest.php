@@ -31,6 +31,7 @@ final class RetryPolicyTest extends TestCase
 
     private Randomizer $randomizer;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->sleeper = new FakeSleeper();

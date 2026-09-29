@@ -19,6 +19,7 @@ final class ErrorMapperTest extends TestCase
 {
     private ErrorMapper $mapper;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->mapper = new ErrorMapper();

@@ -17,6 +17,7 @@ final class TestNetworkException extends \RuntimeException implements NetworkExc
         parent::__construct($message);
     }
 
+    #[\Override]
     public function getRequest(): RequestInterface
     {
         return $this->request ?? new Request('GET', 'https://example.test/');

@@ -17,6 +17,7 @@ final class RetryAfterTest extends TestCase
 
     private FrozenClock $clock;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->clock = new FrozenClock(new DateTimeImmutable('@' . self::FIXED_EPOCH));

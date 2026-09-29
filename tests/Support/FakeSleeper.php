@@ -11,6 +11,7 @@ final class FakeSleeper implements Sleeper
     /** @var list<int> */
     public array $sleptMilliseconds = [];
 
+    #[\Override]
     public function sleepMs(int $milliseconds): void
     {
         $this->sleptMilliseconds[] = $milliseconds;

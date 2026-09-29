@@ -11,6 +11,7 @@ final class WorkflowPolicyTest extends TestCase
 {
     private WorkflowPolicy $policy;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->policy = new WorkflowPolicy();

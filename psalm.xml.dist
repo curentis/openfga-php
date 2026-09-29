@@ -25,10 +25,5 @@
                 <directory name="tests"/>
             </errorLevel>
         </PropertyNotSetInConstructor>
-        <MissingOverrideAttribute>
-            <errorLevel type="suppress">
-                <directory name="tests"/>
-            </errorLevel>
-        </MissingOverrideAttribute>
     </issueHandlers>
 </psalm>
