@@ -1,0 +1,6 @@
+services:
+  openfga:
+    image: openfga/openfga:v1.21.0
+    command: run --playground-enabled=false --log-level=warn
+    ports:
+      - "8080:8080"
