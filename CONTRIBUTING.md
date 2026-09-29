@@ -11,7 +11,7 @@ Thanks for helping! See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Setup
 
-Requirements: PHP 8.3+, Composer 2, Docker (integration tests).
+Requirements: PHP 8.3.16+ (or current 8.4/8.5 patch; see [SUPPORTED_RUNTIMES.md](SUPPORTED_RUNTIMES.md)), Composer 2, Docker (integration tests).
 
 ```bash
 cd openfga-php

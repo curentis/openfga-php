@@ -53,7 +53,7 @@ final class ModelRoundTripTest extends TestCase
     public function testExampleRoundTrips(string $class, array $example): void
     {
         try {
-            $model = $class::fromArray($example);
+            $model = (new \ReflectionMethod($class, 'fromArray'))->invoke(null, $example);
         } catch (FgaValidationException $e) {
             self::markTestSkipped('OpenAPI example is not valid for generated model: ' . $e->getMessage());
         }

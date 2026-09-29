@@ -27,6 +27,13 @@ final class SupportedPhpVersionsTest extends TestCase
                 sprintf('CI workflow must include PHP %s in a matrix.', $version),
             );
         }
+
+        self::assertStringNotContainsString(
+            "matrix.php != '8.5'",
+            $ci,
+            'CI must run the full check job on PHP 8.5 (no matrix exclusions for 8.5).',
+        );
+        self::assertStringContainsString('composer psalm', $ci);
     }
 
     public function testComposerRequireMatchesSupportedMinimum(): void

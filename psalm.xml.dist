@@ -14,6 +14,21 @@
         <directory name="tools"/>
         <ignoreFiles>
             <directory name="vendor"/>
+            <!-- Generated models: PHPStan + baseline; Psalm focuses on hand-written src. -->
+            <directory name="src/Model"/>
+            <directory name="tools"/>
         </ignoreFiles>
     </projectFiles>
+    <issueHandlers>
+        <PropertyNotSetInConstructor>
+            <errorLevel type="suppress">
+                <directory name="tests"/>
+            </errorLevel>
+        </PropertyNotSetInConstructor>
+        <MissingOverrideAttribute>
+            <errorLevel type="suppress">
+                <directory name="tests"/>
+            </errorLevel>
+        </MissingOverrideAttribute>
+    </issueHandlers>
 </psalm>

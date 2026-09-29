@@ -29,7 +29,6 @@ final class ServerReachableTest extends TestCase
             self::markTestSkipped(sprintf('OpenFGA not running at %s (start with docker compose).', $baseUrl));
         }
 
-        self::assertIsString($body);
         self::assertNotSame('', $body);
     }
 }

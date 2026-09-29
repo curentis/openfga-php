@@ -43,7 +43,7 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^12.0",
         "symfony/http-client": "^7.1",
-        "vimeo/psalm": "^6.0"
+        "vimeo/psalm": "^6.19"
     },
     "suggest": {
         "guzzlehttp/guzzle": "A PSR-18 HTTP client (any PSR-18 client works)",
@@ -70,7 +70,7 @@
             "abandoned": "fail"
         },
         "platform": {
-            "php": "8.3.0"
+            "php": "8.3.16"
         },
         "sort-packages": true
     },

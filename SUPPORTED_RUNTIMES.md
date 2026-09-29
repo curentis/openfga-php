@@ -26,8 +26,11 @@ PHP 8.2 is in **security-fixes-only** mode. We do not run CI on 8.2 because **PH
 
 ## Static analysis
 
-- **PHPStan** runs on all supported versions in CI.
-- **Psalm** runs on PHP 8.3 and 8.4 in CI. On PHP 8.5, Psalm 6.5 is not yet reliable; PHPStan still runs on 8.5.
+**PHPStan** and **Psalm** run on **8.3**, **8.4**, and **8.5** in CI (same `composer check` on every matrix cell). Dev dependencies require **Psalm ^6.19** (PHP 8.5–compatible). Contributors should use a current patch release of their PHP branch (see Psalm’s `php` constraint in `composer.lock`).
+
+## Developing locally
+
+Use PHP **8.3.16+**, **8.4.3+**, or **8.5.0+** so `composer install` resolves dev tools. The library runtime still targets `^8.3` for applications.
 
 ## OpenFGA server
 

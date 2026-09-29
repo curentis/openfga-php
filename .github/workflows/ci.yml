@@ -53,9 +53,7 @@ jobs:
       - run: composer workflows
       - run: composer cs
       - run: composer phpstan
-      # Psalm 6.5 is not yet reliable on PHP 8.5; PHPStan runs on every matrix cell.
-      - if: matrix.php != '8.5'
-        run: composer psalm
+      - run: composer psalm
       - run: composer codegen:check
       - run: composer test:architecture
       - run: composer test:unit
