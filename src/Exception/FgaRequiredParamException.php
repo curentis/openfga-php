@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Exception;
 
-final class FgaRequiredParamException extends \InvalidArgumentException implements FgaException
+final class FgaRequiredParamException extends FgaValidationException
 {
     public function __construct(
         public readonly string $paramName,

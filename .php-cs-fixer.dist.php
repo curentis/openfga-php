@@ -11,7 +11,7 @@ return (new PhpCsFixer\Config())
         '@PER-CS2.0' => true,
         '@PHP83Migration' => true,
         'declare_strict_types' => true,
-        'final_class' => true,
+        'final_internal_class' => true,
         'no_unused_imports' => true,
         'ordered_imports' => [
             'imports_order' => ['class', 'function', 'const'],
