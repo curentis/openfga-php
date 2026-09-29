@@ -1,0 +1,7 @@
+/vendor/
+/build/
+/.phpunit.cache/
+/.php-cs-fixer.cache
+*.sarif
+sbom.cdx.json
+.env

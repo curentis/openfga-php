@@ -1,0 +1,7 @@
+curentis/openfga-php
+Copyright 2026 Curentis and contributors.
+
+Licensed under the Apache License, Version 2.0.
+
+API definitions in spec/openapi.json (when present) are from the openfga/api project
+(Apache-2.0), Copyright OpenFGA authors.
