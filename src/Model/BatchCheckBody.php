@@ -58,7 +58,7 @@ final readonly class BatchCheckBody implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency->value], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency?->value], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

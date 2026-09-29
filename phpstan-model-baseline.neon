@@ -19,12 +19,6 @@ parameters:
 			path: src/Model/AuthorizationModel.php
 
 		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ConsistencyPreference\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/BatchCheckBody.php
-
-		-
 			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\BatchCheckItem constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
 			identifier: argument.type
 			count: 1
@@ -41,18 +35,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: src/Model/CheckBody.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/CheckError.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\InternalErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/CheckError.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
@@ -109,22 +91,10 @@ parameters:
 			path: src/Model/FgaObject.php
 
 		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\AuthErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/ForbiddenResponse.php
-
-		-
 			message: '#^Cannot call method format\(\) on DateTimeImmutable\|null\.$#'
 			identifier: method.nonObject
 			count: 1
 			path: src/Model/GetStoreResponse.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\InternalErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/InternalErrorMessageResponse.php
 
 		-
 			message: '#^Parameter \$context of class Curentis\\OpenFga\\Model\\ListObjectsBody constructor expects array\<string, mixed\>\|null, array\<mixed, mixed\>\|null given\.$#'
@@ -167,12 +137,6 @@ parameters:
 			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: src/Model/Nodes.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\NotFoundErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/PathUnknownErrorMessageResponse.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between array\|string and null will always evaluate to true\.$#'
@@ -235,18 +199,6 @@ parameters:
 			path: src/Model/TypedWildcard.php
 
 		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/UnauthenticatedResponse.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\UnprocessableContentErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/UnprocessableContentMessageResponse.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between array and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
@@ -281,12 +233,6 @@ parameters:
 			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: src/Model/Usersets.php
-
-		-
-			message: '#^Cannot access property \$value on Curentis\\OpenFga\\Model\\ErrorCode\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Model/ValidationErrorMessageResponse.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between \*NEVER\* and null will always evaluate to true\.$#'
