@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Client;
 
 use Curentis\OpenFga\Api\OpenFgaApi;
+use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\RequestOptions;
+use Curentis\OpenFga\Client\Options\WriteOptions;
+use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
+use Curentis\OpenFga\Client\Request\ClientListRelationsRequest;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
+use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Exception\FgaRequiredParamException;
 use Curentis\OpenFga\Http\NdjsonStream;
 use Curentis\OpenFga\Http\PathTemplate;
 use Curentis\OpenFga\Http\Transport;
-use Curentis\OpenFga\Model\BatchCheckBody;
-use Curentis\OpenFga\Model\BatchCheckResponse;
 use Curentis\OpenFga\Model\CheckResponse;
 use Curentis\OpenFga\Model\ConsistencyPreference;
 use Curentis\OpenFga\Model\CreateStoreRequest;
@@ -148,24 +152,27 @@ final class OpenFgaClient implements OpenFgaClientInterface
     }
 
     #[\Override]
-    public function write(ClientWriteRequest $request, ?RequestOptions $options = null): ClientWriteResponse
+    public function write(ClientWriteRequest $request, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        $body = ClientRequestMapper::toWriteBody($request, $this->authorizationModelId($options));
-        $response = $this->api->write($this->requireStoreId($options), $body, $this->headers($options));
-
-        return new ClientWriteResponse($response);
+        return (new WriteRunner($this->api))->run(
+            $this->requireStoreId($options),
+            $request,
+            $this->authorizationModelId($options),
+            $write ?? new WriteOptions(),
+            $this->headers($options),
+        );
     }
 
     #[\Override]
-    public function writeTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse
+    public function writeTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        return $this->write(new ClientWriteRequest(writes: $tuples), $options);
+        return $this->write(new ClientWriteRequest(writes: $tuples), $write, $options);
     }
 
     #[\Override]
-    public function deleteTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse
+    public function deleteTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        return $this->write(new ClientWriteRequest(deletes: $tuples), $options);
+        return $this->write(new ClientWriteRequest(deletes: $tuples), $write, $options);
     }
 
     #[\Override]
@@ -194,15 +201,41 @@ final class OpenFgaClient implements OpenFgaClientInterface
     }
 
     #[\Override]
-    public function batchCheck(array $checks, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): BatchCheckResponse
+    public function batchCheck(array $checks, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientBatchCheckResponse
     {
-        $body = new BatchCheckBody(
-            checks: $checks,
-            authorizationModelId: $this->authorizationModelId($options),
-            consistency: $consistency,
+        return (new BatchCheckRunner($this->api))->run(
+            $this->requireStoreId($options),
+            $checks,
+            $batch ?? new BatchCheckOptions(),
+            $this->authorizationModelId($options),
+            $consistency,
+            $this->headers($options),
         );
+    }
 
-        return $this->api->batchCheck($this->requireStoreId($options), $body, $this->headers($options));
+    #[\Override]
+    public function listRelations(ClientListRelationsRequest $request, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientListRelationsResponse
+    {
+        $checks = [];
+        foreach ($request->relations as $relation) {
+            $checks[] = new ClientBatchCheckItem(
+                user: $request->user,
+                relation: $relation,
+                object: $request->object,
+                correlationId: $relation,
+            );
+        }
+
+        $batchResponse = $this->batchCheck($checks, $batch, $consistency, $options);
+        $allowed = [];
+        foreach ($request->relations as $index => $relation) {
+            $result = $batchResponse->results[$index] ?? null;
+            if ($result !== null && $result->allowed === true) {
+                $allowed[] = $relation;
+            }
+        }
+
+        return new ClientListRelationsResponse($allowed);
     }
 
     #[\Override]

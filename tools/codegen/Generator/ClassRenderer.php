@@ -357,6 +357,10 @@ final class ClassRenderer
             return sprintf('\'%s\' => $this->%s->format(\\DateTimeInterface::ATOM)', addslashes($jsonName), $phpName);
         }
         if ($mapped['enumSchema'] !== null) {
+            if ($mapped['nullable']) {
+                return sprintf('\'%s\' => $this->%s?->value', addslashes($jsonName), $phpName);
+            }
+
             return sprintf('\'%s\' => $this->%s->value', addslashes($jsonName), $phpName);
         }
         if ($mapped['isList'] && $mapped['modelSchema'] !== null) {

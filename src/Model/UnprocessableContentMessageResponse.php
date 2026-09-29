@@ -42,7 +42,7 @@ final readonly class UnprocessableContentMessageResponse implements \JsonSeriali
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['code' => $this->code->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['code' => $this->code?->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

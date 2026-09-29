@@ -8,5 +8,11 @@ use Curentis\OpenFga\Model\WriteResponse;
 
 final readonly class ClientWriteResponse
 {
-    public function __construct(public WriteResponse $response) {}
+    /**
+     * @param list<ClientWriteTupleResult> $tupleResults
+     */
+    public function __construct(
+        public ?WriteResponse $response,
+        public array $tupleResults = [],
+    ) {}
 }

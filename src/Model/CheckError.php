@@ -55,7 +55,7 @@ final readonly class CheckError implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['input_error' => $this->inputError->value, 'internal_error' => $this->internalError->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['input_error' => $this->inputError?->value, 'internal_error' => $this->internalError?->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */
