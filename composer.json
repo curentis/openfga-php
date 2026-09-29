@@ -58,7 +58,8 @@
     "autoload-dev": {
         "psr-4": {
             "Curentis\\OpenFga\\Tests\\": "tests/",
-            "Curentis\\OpenFga\\Tools\\": "tools/"
+            "Curentis\\OpenFga\\Tools\\": "tools/",
+            "Curentis\\OpenFga\\Tools\\Codegen\\": "tools/codegen/"
         }
     },
     "config": {
