@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  COMPOSER_NO_INTERACTION: "1"
+
+jobs:
+  check:
+    name: check (PHP ${{ matrix.php }}, ${{ matrix.deps }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.3", "8.4", "8.5"]
+        deps: [locked, lowest]
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: pcov
+          tools: composer:v2
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ matrix.php }}-${{ matrix.deps }}-${{ hashFiles('composer.lock') }}
+      - if: matrix.deps == 'locked'
+        run: composer install --prefer-dist --no-progress
+      - if: matrix.deps == 'lowest'
+        run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-progress
+      - run: composer validate --strict
+      - run: composer normalize --dry-run
+      - run: composer workflows
+      - run: composer cs
+      - run: composer phpstan
+      # Psalm 6.5 is not yet reliable on PHP 8.5; PHPStan runs on every matrix cell.
+      - if: matrix.php != '8.5'
+        run: composer psalm
+      - run: composer codegen:check
+      - run: composer test:architecture
+      - run: composer test:unit
+      - run: composer test:contract
+      - if: matrix.php == '8.3' && matrix.deps == 'locked'
+        run: composer test:unit:coverage
+      - if: matrix.php == '8.3' && matrix.deps == 'locked'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/clover.xml
+          flags: unit
+          use_oidc: true
+          fail_ci_if_error: false
+      - if: ${{ !cancelled() && matrix.php == '8.3' && matrix.deps == 'locked' }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          files: build/junit.xml
+          use_oidc: true
+
+  integration:
+    name: integration (PHP ${{ matrix.php }}, OpenFGA ${{ matrix.openfga }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.3", "8.4", "8.5"]
+        openfga: ["v1.10.0", "v1.21.0"]
+    env:
+      FGA_API_URL: http://localhost:8080
+      FGA_REQUIRE_SERVER: "1"
+      OPENFGA_VERSION: ${{ matrix.openfga }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - run: composer install --prefer-dist --no-progress
+      - name: Start OpenFGA
+        run: |
+          docker run -d --name openfga -p 8080:8080 "openfga/openfga:${OPENFGA_VERSION}" run --playground-enabled=false
+          for i in $(seq 1 60); do curl -fsS http://localhost:8080/healthz && exit 0; sleep 1; done
+          docker logs openfga
+          exit 1
+      - run: composer test:integration
+      - if: failure()
+        run: docker logs openfga
+
+  gate:
+    name: gate
+    if: always()
+    needs: [check, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: All required jobs passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do [ "$r" = "success" ] || exit 1; done
