@@ -213,6 +213,18 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertSame(['doc:1'], $objects);
     }
 
+    public function testStreamedListObjectsWithoutConsistencyUsesOriginalBody(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{"object":"doc:9"}}' . "\n"));
+        $client = $this->openFgaClient($mock);
+
+        self::assertSame(['doc:9'], iterator_to_array($client->streamedListObjects(
+            new ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'),
+        )));
+        self::assertStringNotContainsString('consistency', (string) $this->lastRequest($mock)->getBody());
+    }
+
     public function testStreamedListObjectsSkipsMalformedResultLines(): void
     {
         $mock = new MockClient();

@@ -161,6 +161,15 @@ final class TokenProviderTest extends TestCase
         self::assertSame('fresh', $provider->getAccessToken());
     }
 
+    public function testIntegerExpiresInIsAccepted(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"int-exp","expires_in":120}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        self::assertSame('int-exp', $provider->getAccessToken());
+    }
+
     public function testNumericStringExpiresInIsAccepted(): void
     {
         $mock = new MockClient();
