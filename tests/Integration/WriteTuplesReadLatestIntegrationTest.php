@@ -7,6 +7,7 @@ namespace Curentis\OpenFga\Tests\Integration;
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\OpenFgaClientFactory;
 use Curentis\OpenFga\Client\Options\ConflictOptions;
+use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
@@ -49,10 +50,9 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
             ]))->authorizationModelId;
             $fga = $fga->withAuthorizationModelId($modelId);
 
-            $latest = $fga->readLatestAuthorizationModel();
-            self::assertNotNull($latest);
-            self::assertNotNull($latest->authorizationModel);
-            self::assertSame($modelId, $latest->authorizationModel->id);
+            $listed = $fga->readAuthorizationModels(new PaginationOptions(pageSize: 1));
+            self::assertNotEmpty($listed->authorizationModels);
+            self::assertSame($modelId, $listed->authorizationModels[0]->id);
 
             $tuple = new ClientTupleKey('user:anne', 'viewer', 'document:plan');
             $fga->writeTuples([$tuple]);
