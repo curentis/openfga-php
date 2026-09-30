@@ -31,7 +31,7 @@ final class ClientResponseAndOptionsTest extends TestCase
         ]);
         self::assertTrue($batch->results[0]->allowed);
 
-        self::assertSame(['viewer'], new ClientListRelationsResponse(['viewer'])->relations);
+        self::assertSame(['viewer'], (new ClientListRelationsResponse(['viewer']))->relations);
     }
 
     public function testOptionsDefaultsAreConstructible(): void
