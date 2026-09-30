@@ -29,6 +29,12 @@ final class ClientConfigurationTest extends TestCase
         new ClientConfiguration(storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAVXXX');
     }
 
+    public function testRejectsStoreIdWithLeadingGarbageBeforeValidUlid(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientConfiguration(storeId: 'xx01ARZ3NDEKTSV4RRFFQ69G5FAV');
+    }
+
     public function testRejectsInvalidAuthorizationModelId(): void
     {
         $this->expectException(FgaValidationException::class);

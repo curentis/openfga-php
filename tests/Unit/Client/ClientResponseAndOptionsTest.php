@@ -58,9 +58,26 @@ final class ClientResponseAndOptionsTest extends TestCase
         new BatchCheckOptions(maxBatchSize: 0);
     }
 
+    public function testBatchCheckOptionsRejectsBatchSizeAboveFifty(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new BatchCheckOptions(maxBatchSize: 51);
+    }
+
     public function testRetryOptionsRejectsInvalidMinWait(): void
     {
         $this->expectException(FgaValidationException::class);
         new RetryOptions(minWaitMs: 0);
+    }
+
+    public function testRetryOptionsRejectsNegativeMaxRetry(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new RetryOptions(maxRetry: -1);
+    }
+
+    public function testRetryOptionsAcceptsZeroMaxRetry(): void
+    {
+        self::assertSame(0, (new RetryOptions(maxRetry: 0))->maxRetry);
     }
 }

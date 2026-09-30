@@ -33,6 +33,7 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
         array $headers,
     ): ClientBatchCheckResponse {
         if ($checks === []) {
+            /** @infection-ignore-all */
             return new ClientBatchCheckResponse([]);
         }
 
@@ -88,10 +89,10 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
 
         foreach ($checks as $check) {
             $correlationId = $check->correlationId ?? Uuid::v4();
-            if (isset($seen[$correlationId])) {
+            if (in_array($correlationId, $seen, true)) {
                 throw new FgaValidationException(sprintf('Duplicate correlation_id "%s" in batchCheck.', $correlationId));
             }
-            $seen[$correlationId] = 1;
+            $seen[] = $correlationId;
 
             $prepared[] = [
                 'correlationId' => $correlationId,

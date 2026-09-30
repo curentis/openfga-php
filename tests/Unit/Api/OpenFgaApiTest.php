@@ -30,6 +30,17 @@ final class OpenFgaApiTest extends MockTransportTestCase
 
     private const string MODEL_ID = '01HZZZZZZZZZZZZZZZZZZZZZZZ';
 
+    public function testListStoresOmitsEmptyContinuationToken(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $api = $this->openFgaApi($mock);
+
+        $api->listStores(continuationToken: '');
+
+        self::assertSame('', $this->lastRequest($mock)->getUri()->getQuery());
+    }
+
     public function testListStoresOmitsNullAndEmptyQueryParameters(): void
     {
         $mock = new MockClient();

@@ -44,6 +44,16 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertNotSame($client, $other);
     }
 
+    public function testCreateStoreWithoutRequestOptionsSendsNoExtraHeaders(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], $this->storeJson()));
+        $client = $this->openFgaClient($mock);
+
+        $client->createStore('new-store');
+        self::assertSame('', $this->lastRequest($mock)->getHeaderLine('X-H'));
+    }
+
     public function testListStoresAndCreateStore(): void
     {
         $mock = new MockClient();
@@ -264,6 +274,17 @@ final class OpenFgaClientTest extends MockTransportTestCase
         )));
     }
 
+    public function testStreamedListObjectsSkipsLinesWithoutObjectKey(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{}}' . "\n" . '{"result":{"object":"doc:ok"}}' . "\n"));
+        $client = $this->openFgaClient($mock);
+
+        self::assertSame(['doc:ok'], iterator_to_array($client->streamedListObjects(
+            new ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'),
+        )));
+    }
+
     public function testStreamedListObjectsSkipsNonStringObjectValues(): void
     {
         $mock = new MockClient();
@@ -357,6 +378,20 @@ final class OpenFgaClientTest extends MockTransportTestCase
 
         self::assertTrue($batch->results[0]->allowed);
         self::assertCount(1, $mock->getRequests());
+    }
+
+    public function testListRelationsWithNullBatchOptionsUsesDefaults(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{"viewer":{"allowed":true}}}'));
+        $client = $this->openFgaClient($mock);
+
+        $response = $client->listRelations(
+            new \Curentis\OpenFga\Client\Request\ClientListRelationsRequest('user:a', 'doc:1', ['viewer']),
+            null,
+        );
+
+        self::assertSame(['viewer'], $response->relations);
     }
 
     public function testWriteWithNullWriteOptionsUsesTransactionalWrite(): void
