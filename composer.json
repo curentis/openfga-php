@@ -112,7 +112,7 @@
         ],
         "test:unit": "phpunit --testsuite unit",
         "test:unit:coverage": [
-            "phpunit --testsuite unit --coverage-clover build/clover.xml --coverage-xml build/coverage-xml --log-junit build/junit.xml",
+            "phpunit --testsuite unit --coverage-clover build/clover.xml --coverage-xml build/coverage-xml --log-junit build/coverage-xml/junit.xml",
             "@php tools/coverage-check.php build/clover.xml 100"
         ],
         "workflows": [
