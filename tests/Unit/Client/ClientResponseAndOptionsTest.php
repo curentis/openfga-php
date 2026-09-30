@@ -36,12 +36,12 @@ final class ClientResponseAndOptionsTest extends TestCase
 
     public function testOptionsDefaultsAreConstructible(): void
     {
-        self::assertSame(50, new BatchCheckOptions()->maxBatchSize);
-        self::assertNull(new PaginationOptions()->pageSize);
-        self::assertSame(3, new RetryOptions()->maxRetry);
-        self::assertFalse(new TransactionOptions()->disable);
-        self::assertSame([], new RequestOptions()->headers);
-        self::assertNull(new ConflictOptions()->onDuplicateWrites);
-        self::assertFalse(new WriteOptions()->transaction->disable);
+        self::assertSame(50, (new BatchCheckOptions())->maxBatchSize);
+        self::assertNull((new PaginationOptions())->pageSize);
+        self::assertSame(3, (new RetryOptions())->maxRetry);
+        self::assertFalse((new TransactionOptions())->disable);
+        self::assertSame([], (new RequestOptions())->headers);
+        self::assertNull((new ConflictOptions())->onDuplicateWrites);
+        self::assertFalse((new WriteOptions())->transaction->disable);
     }
 }
