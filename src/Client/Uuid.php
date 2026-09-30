@@ -11,12 +11,7 @@ final class Uuid
 {
     public static function v4(): string
     {
-        $bytes = random_bytes(16);
-        if (strlen($bytes) !== 16) {
-            throw new \UnexpectedValueException('random_bytes(16) must return exactly 16 bytes.');
-        }
-
-        return self::formatV4Bytes($bytes);
+        return self::formatV4Bytes(random_bytes(16));
     }
 
     /**
