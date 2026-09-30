@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Api;
 
+use Curentis\OpenFga\Http\QueryParameterFilter;
 use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckResponse;
@@ -49,7 +50,7 @@ final class OpenFgaApi implements OpenFgaApiInterface
             'GET',
             '/stores',
             [],
-            $this->query([
+            QueryParameterFilter::omitNullAndEmpty([
                 'page_size' => $pageSize,
                 'continuation_token' => $continuationToken,
                 'name' => $name,
@@ -123,7 +124,7 @@ final class OpenFgaApi implements OpenFgaApiInterface
             'GET',
             '/stores/{store_id}/authorization-models',
             ['store_id' => $storeId],
-            $this->query([
+            QueryParameterFilter::omitNullAndEmpty([
                 'page_size' => $pageSize,
                 'continuation_token' => $continuationToken,
             ]),
@@ -226,7 +227,7 @@ final class OpenFgaApi implements OpenFgaApiInterface
             'GET',
             '/stores/{store_id}/changes',
             ['store_id' => $storeId],
-            $this->query([
+            QueryParameterFilter::omitNullAndEmpty([
                 'type' => $type,
                 'page_size' => $pageSize,
                 'continuation_token' => $continuationToken,
@@ -381,21 +382,4 @@ final class OpenFgaApi implements OpenFgaApiInterface
         );
     }
 
-    /**
-     * @param array<string, scalar|null> $query
-     *
-     * @return array<string, scalar|null>
-     */
-    private function query(array $query): array
-    {
-        $filtered = [];
-        foreach ($query as $key => $value) {
-            if ($value === null || $value === '') {
-                continue;
-            }
-            $filtered[$key] = $value;
-        }
-
-        return $filtered;
-    }
 }

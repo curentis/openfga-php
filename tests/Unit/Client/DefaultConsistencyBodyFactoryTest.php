@@ -25,4 +25,20 @@ final class DefaultConsistencyBodyFactoryTest extends TestCase
         self::assertSame($modelId, $body->authorizationModelId);
         self::assertSame('HIGHER_CONSISTENCY', $body->consistency);
     }
+
+    public function testExpandKeepsAuthorizationModelIdFromBodyWhenSet(): void
+    {
+        $factory = new DefaultConsistencyBodyFactory();
+        $bodyModelId = '01JCCCCCCCCCCCCCCCCCCCCCCCC';
+        $body = $factory->expand(
+            new ExpandBody(
+                tupleKey: new ExpandRequestTupleKey(object: 'doc:1', relation: 'viewer'),
+                authorizationModelId: $bodyModelId,
+            ),
+            ConsistencyPreference::HIGHER_CONSISTENCY,
+            '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+        );
+
+        self::assertSame($bodyModelId, $body->authorizationModelId);
+    }
 }

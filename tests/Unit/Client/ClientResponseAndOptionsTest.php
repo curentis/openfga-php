@@ -52,6 +52,11 @@ final class ClientResponseAndOptionsTest extends TestCase
         new WriteOptions(maxPerChunk: 0);
     }
 
+    public function testWriteOptionsAcceptsMinimumMaxPerChunk(): void
+    {
+        self::assertSame(1, (new WriteOptions(maxPerChunk: 1))->maxPerChunk);
+    }
+
     public function testBatchCheckOptionsRejectsOutOfRangeBatchSize(): void
     {
         $this->expectException(FgaValidationException::class);
@@ -79,5 +84,20 @@ final class ClientResponseAndOptionsTest extends TestCase
     public function testRetryOptionsAcceptsZeroMaxRetry(): void
     {
         self::assertSame(0, (new RetryOptions(maxRetry: 0))->maxRetry);
+    }
+
+    public function testRetryOptionsAcceptsFifteenMaxRetry(): void
+    {
+        self::assertSame(15, (new RetryOptions(maxRetry: 15))->maxRetry);
+    }
+
+    public function testRetryOptionsAcceptsMinimumMinWait(): void
+    {
+        self::assertSame(1, (new RetryOptions(minWaitMs: 1))->minWaitMs);
+    }
+
+    public function testBatchCheckOptionsAcceptsMinimumBatchSize(): void
+    {
+        self::assertSame(1, (new BatchCheckOptions(maxBatchSize: 1))->maxBatchSize);
     }
 }

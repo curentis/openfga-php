@@ -154,7 +154,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function read(?ReadBody $request = null, ?PaginationOptions $page = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ReadResponse
     {
-        $body = $request ?? new ReadBody();
+        $body = $this->resolveReadBody($request);
         $consistencyValue = $consistency !== null ? $consistency->value : $body->consistency;
         $pageSize = $page !== null ? $page->pageSize : $body->pageSize;
         $continuationToken = $page !== null ? $page->continuationToken : $body->continuationToken;
@@ -175,7 +175,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             $this->requireStoreId($options),
             $request,
             $this->authorizationModelId($options),
-            $write ?? new WriteOptions(),
+            $this->resolveWriteOptions($write),
             $this->headers($options),
         );
     }
@@ -223,7 +223,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
         return $this->batchCheckRunner->run(
             $this->requireStoreId($options),
             $checks,
-            $batch ?? new BatchCheckOptions(),
+            $this->resolveBatchCheckOptions($batch),
             $this->authorizationModelId($options),
             $consistency,
             $this->headers($options),
@@ -425,6 +425,33 @@ final class OpenFgaClient implements OpenFgaClientInterface
         }
 
         return $options->headers;
+    }
+
+    private function resolveReadBody(?ReadBody $request): ReadBody
+    {
+        if ($request === null) {
+            return new ReadBody();
+        }
+
+        return $request;
+    }
+
+    private function resolveWriteOptions(?WriteOptions $write): WriteOptions
+    {
+        if ($write === null) {
+            return new WriteOptions();
+        }
+
+        return $write;
+    }
+
+    private function resolveBatchCheckOptions(?BatchCheckOptions $batch): BatchCheckOptions
+    {
+        if ($batch === null) {
+            return new BatchCheckOptions();
+        }
+
+        return $batch;
     }
 
     /**

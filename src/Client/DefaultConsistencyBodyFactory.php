@@ -14,9 +14,14 @@ final class DefaultConsistencyBodyFactory implements ConsistencyBodyFactoryInter
     #[\Override]
     public function expand(ExpandBody $body, ConsistencyPreference $consistency, ?string $authorizationModelId): ExpandBody
     {
+        $modelId = $body->authorizationModelId;
+        if ($modelId === null) {
+            $modelId = $authorizationModelId;
+        }
+
         return new ExpandBody(
             tupleKey: $body->tupleKey,
-            authorizationModelId: $body->authorizationModelId ?? $authorizationModelId,
+            authorizationModelId: $modelId,
             consistency: $consistency->value,
             contextualTuples: $body->contextualTuples,
         );

@@ -29,11 +29,24 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
             return $configuration->clientFactory->create($configuration, $clock, $randomizer);
         }
 
-        $clock ??= new NativeClock();
-        $randomizer ??= new Randomizer();
-        $httpClient = $configuration->httpClient ?? Psr18ClientDiscovery::find();
-        $requestFactory = $configuration->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
-        $streamFactory = $configuration->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+        if ($clock === null) {
+            $clock = new NativeClock();
+        }
+        if ($randomizer === null) {
+            $randomizer = new Randomizer();
+        }
+        $httpClient = $configuration->httpClient;
+        if ($httpClient === null) {
+            $httpClient = Psr18ClientDiscovery::find();
+        }
+        $requestFactory = $configuration->requestFactory;
+        if ($requestFactory === null) {
+            $requestFactory = Psr17FactoryDiscovery::findRequestFactory();
+        }
+        $streamFactory = $configuration->streamFactory;
+        if ($streamFactory === null) {
+            $streamFactory = Psr17FactoryDiscovery::findStreamFactory();
+        }
 
         $retryPolicy = new RetryPolicy(
             $configuration->retry->maxRetry,
@@ -71,7 +84,10 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
         );
 
         $api = new OpenFgaApi($transport);
-        $componentFactory = $configuration->componentFactory ?? new DefaultClientComponentFactory();
+        $componentFactory = $configuration->componentFactory;
+        if ($componentFactory === null) {
+            $componentFactory = new DefaultClientComponentFactory();
+        }
 
         return new OpenFgaClient(
             $configuration,

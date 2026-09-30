@@ -11,10 +11,12 @@ final class UuidTest extends TestCase
 {
     public function testV4MatchesUuidFormat(): void
     {
-        $uuid = Uuid::v4();
-        self::assertMatchesRegularExpression(
-            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
-            $uuid,
-        );
+        for ($i = 0; $i < 8; ++$i) {
+            $uuid = Uuid::v4();
+            self::assertMatchesRegularExpression(
+                '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+                $uuid,
+            );
+        }
     }
 }
