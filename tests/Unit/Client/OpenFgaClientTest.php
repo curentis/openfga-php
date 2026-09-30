@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Tests\Unit\Client;
 
 use Curentis\OpenFga\Client\ClientConfiguration;
+use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\RequestOptions;
+use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
@@ -406,6 +408,34 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $client->write(new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]), null);
 
         self::assertSame('Write', $this->lastRequest($mock)->getHeaderLine('X-OpenFGA-Client-Method'));
+    }
+
+    public function testWriteWithExplicitWriteOptionsUsesTransactionalWrite(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $client = $this->openFgaClient($mock);
+
+        $client->write(
+            new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]),
+            new WriteOptions(),
+        );
+
+        self::assertSame('Write', $this->lastRequest($mock)->getHeaderLine('X-OpenFGA-Client-Method'));
+    }
+
+    public function testBatchCheckWithExplicitBatchOptions(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{"c1":{"allowed":true}}}'));
+        $client = $this->openFgaClient($mock);
+
+        $batch = $client->batchCheck(
+            [new ClientBatchCheckItem('user:a', 'viewer', 'doc:1', correlationId: 'c1')],
+            new BatchCheckOptions(maxBatchSize: 10),
+        );
+
+        self::assertTrue($batch->results[0]->allowed);
     }
 
     public function testNullStoreIdInRequestOptionsFallsBackToConfiguration(): void

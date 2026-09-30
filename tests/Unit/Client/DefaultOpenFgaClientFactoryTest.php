@@ -6,11 +6,14 @@ namespace Curentis\OpenFga\Tests\Unit\Client;
 
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\DefaultOpenFgaClientFactory;
+use Curentis\OpenFga\Client\OpenFgaClient;
+use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
+use Curentis\OpenFga\Client\OpenFgaClientInterface;
+use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\TestCase;
 
-final class DefaultOpenFgaClientFactoryTest extends TestCase
+final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
 {
     public function testCreateBuildsWorkingClientWithExplicitHttpDependencies(): void
     {
@@ -29,5 +32,43 @@ final class DefaultOpenFgaClientFactoryTest extends TestCase
 
         self::assertSame([], $client->listStores()->stores);
         self::assertCount(1, $mock->getRequests());
+    }
+
+    public function testCreateUsesHttpDiscoveryWhenDependenciesOmitted(): void
+    {
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(apiUrl: 'http://localhost:8080'),
+        );
+
+        self::assertInstanceOf(OpenFgaClient::class, $client);
+    }
+
+    public function testCreateDelegatesToClientFactoryOnConfiguration(): void
+    {
+        $mock = new MockClient();
+        $expected = $this->openFgaClient($mock);
+
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                clientFactory: new FixedOpenFgaClientFactory($expected),
+            ),
+        );
+
+        self::assertSame($expected, $client);
+    }
+}
+
+final class FixedOpenFgaClientFactory implements OpenFgaClientFactoryInterface
+{
+    public function __construct(private readonly OpenFgaClientInterface $client) {}
+
+    #[\Override]
+    public function create(
+        ClientConfiguration $configuration,
+        ?\Psr\Clock\ClockInterface $clock = null,
+        ?\Random\Randomizer $randomizer = null,
+    ): OpenFgaClientInterface {
+        return $this->client;
     }
 }

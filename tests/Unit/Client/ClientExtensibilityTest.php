@@ -64,14 +64,12 @@ final class ClientExtensibilityTest extends MockTransportTestCase
     public function testClientFactoryOnConfigurationIsUsed(): void
     {
         $mock = new MockClient();
-        $stub = $this->createMock(OpenFgaClientInterface::class);
-        $factories = new \Nyholm\Psr7\Factory\Psr17Factory();
+        $stub = $this->openFgaClient($mock);
 
         $client = OpenFgaClientFactory::create(
             new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
                 httpClient: $mock,
-                requestFactory: $factories,
-                streamFactory: $factories,
                 clientFactory: new StubOpenFgaClientFactory($stub),
             ),
         );
