@@ -77,7 +77,7 @@ jobs:
       - if: ${{ !cancelled() && matrix.php == '8.3' && matrix.deps == 'locked' }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
         with:
-          files: build/junit.xml
+          files: build/coverage-xml/junit.xml
           use_oidc: true
 
   integration:
