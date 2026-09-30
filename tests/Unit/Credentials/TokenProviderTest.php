@@ -189,6 +189,16 @@ final class TokenProviderTest extends TestCase
         $provider->getAccessToken();
     }
 
+    public function testMissingAccessTokenFieldTriggersInvalidTokenResponse(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"expires_in":3600}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        $this->expectException(FgaTokenExchangeException::class);
+        $provider->getAccessToken();
+    }
+
     public function testInvalidTokenResponseThrowsExchangeException(): void
     {
         $mock = new MockClient();
