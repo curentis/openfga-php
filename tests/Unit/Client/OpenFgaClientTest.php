@@ -121,6 +121,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{"changes":[],"continuation_token":""}'));
         $mock->addResponse(new Response(200, [], '{"allowed":true}'));
+        $mock->addResponse(new Response(200, [], '{"allowed":true}'));
         $mock->addResponse(new Response(200, [], '{"result":{"c1":{"allowed":true}}}'));
         $client = $this->openFgaClient($mock);
 
@@ -129,8 +130,14 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $client->deleteTuples([new ClientTupleKeyWithoutCondition('user:a', 'viewer', 'doc:1')]);
         self::assertSame([], $client->readChanges(type: 'document')->changes);
 
-        $check = $client->check(new ClientCheckRequest('user:a', 'viewer', 'doc:1'), ConsistencyPreference::MINIMIZE_LATENCY);
+        $check = $client->check(new ClientCheckRequest('user:a', 'viewer', 'doc:1'));
         self::assertTrue($check->allowed);
+
+        $checkWithConsistency = $client->check(
+            new ClientCheckRequest('user:a', 'viewer', 'doc:1'),
+            ConsistencyPreference::MINIMIZE_LATENCY,
+        );
+        self::assertTrue($checkWithConsistency->allowed);
 
         $batch = $client->batchCheck([
             new ClientBatchCheckItem('user:a', 'viewer', 'doc:1', correlationId: 'c1'),
@@ -206,6 +213,17 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertSame(['doc:1'], $objects);
     }
 
+    public function testStreamedListObjectsSkipsMalformedResultLines(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":"not-an-array"}' . "\n"));
+        $client = $this->openFgaClient($mock);
+
+        self::assertSame([], iterator_to_array($client->streamedListObjects(
+            new ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'),
+        )));
+    }
+
     public function testReadAndWriteAssertions(): void
     {
         $mock = new MockClient();
@@ -242,6 +260,21 @@ final class OpenFgaClientTest extends MockTransportTestCase
         ));
         self::assertCount(2, $lines);
         self::assertSame(3, $lines[0]['line']);
+    }
+
+    public function testNullStoreIdInRequestOptionsFallsBackToConfiguration(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], $this->storeJson()));
+        $config = new ClientConfiguration(storeId: self::STORE_ID);
+        $client = new \Curentis\OpenFga\Client\OpenFgaClient(
+            $config,
+            $this->openFgaApi($mock),
+            $this->transport($mock),
+        );
+
+        $client->getStore(new RequestOptions(storeId: null));
+        self::assertSame('/stores/' . self::STORE_ID, $this->lastRequest($mock)->getUri()->getPath());
     }
 
     public function testRequestOptionsOverrideStoreAndModel(): void

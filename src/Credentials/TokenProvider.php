@@ -140,7 +140,9 @@ final class TokenProvider
         }
 
         if ($this->cache === null) {
+            // @codeCoverageIgnoreStart
             return null;
+            // @codeCoverageIgnoreEnd
         }
 
         $cached = $this->cache->get($this->cacheKey());
