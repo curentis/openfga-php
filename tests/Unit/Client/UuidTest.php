@@ -23,6 +23,9 @@ final class UuidTest extends TestCase
             self::assertSame(16, strlen($bytes));
             self::assertSame(0x40, ord($bytes[6]) & 0xf0);
             self::assertSame(0x80, ord($bytes[8]) & 0xc0);
+            self::assertSame('4', $uuid[14]);
+            self::assertMatchesRegularExpression('/^[89ab]$/', $uuid[19]);
+            self::assertSame(36, strlen($uuid));
         }
     }
 }

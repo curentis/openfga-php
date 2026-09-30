@@ -70,6 +70,52 @@ final class TransportTest extends TestCase
         self::assertSame(['stores' => []], $transport->sendJson('GET', '/stores'));
     }
 
+    public function testQueryWithOnlyNullArrayItemsOmitsQueryString(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $transport = $this->transport($mock);
+
+        $transport->send('GET', '/stores', [], ['types' => [null, null]]);
+
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(\Psr\Http\Message\RequestInterface::class, $request);
+        self::assertSame('', $request->getUri()->getQuery());
+    }
+
+    public function testApiUrlTrailingSlashIsTrimmedBeforePathConcatenation(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $factories = new Psr17Factory();
+        $retry = new RetryPolicy(
+            0,
+            100,
+            new FakeSleeper(),
+            new FrozenClock(new \DateTimeImmutable('@1700000000')),
+            new Randomizer(new Mt19937(1)),
+        );
+        $transport = new Transport(
+            'http://localhost:8080/',
+            [],
+            $mock,
+            $factories,
+            $factories,
+            $factories,
+            $retry,
+            new AuthorizationHeaderProvider(new \Curentis\OpenFga\Credentials\NoCredentials()),
+        );
+
+        $transport->send('GET', '/stores');
+
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(\Psr\Http\Message\RequestInterface::class, $request);
+        self::assertSame('http', $request->getUri()->getScheme());
+        self::assertSame('localhost', $request->getUri()->getHost());
+        self::assertSame(8080, $request->getUri()->getPort());
+        self::assertSame('/stores', $request->getUri()->getPath());
+    }
+
     public function testQueryWithOnlyNullValuesOmitsQueryString(): void
     {
         $mock = new MockClient();

@@ -40,10 +40,12 @@ final class ClientResponseAndOptionsTest extends TestCase
         self::assertSame(50, (new BatchCheckOptions())->maxBatchSize);
         self::assertNull((new PaginationOptions())->pageSize);
         self::assertSame(3, (new RetryOptions())->maxRetry);
+        self::assertSame(100, (new RetryOptions())->minWaitMs);
         self::assertFalse((new TransactionOptions())->disable);
         self::assertSame([], (new RequestOptions())->headers);
         self::assertNull((new ConflictOptions())->onDuplicateWrites);
         self::assertFalse((new WriteOptions())->transaction->disable);
+        self::assertSame(1, (new WriteOptions())->maxPerChunk);
     }
 
     public function testWriteOptionsRejectsInvalidMaxPerChunk(): void

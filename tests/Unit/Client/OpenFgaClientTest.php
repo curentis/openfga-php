@@ -321,7 +321,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
             'GET',
             '/stores/{store_id}/custom',
             ['store_id' => self::STORE_ID, 0 => 'skip'],
-            ['page_size' => 5, 'nullable' => null, 'bad' => ['array']],
+            ['page_size' => 5, 'limit' => 10, 'nullable' => null, 'bad' => ['array']],
             null,
             new RequestOptions(headers: ['X-Req' => 'yes']),
         );
@@ -332,9 +332,10 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $query = $request->getUri()->getQuery();
         parse_str($query, $parsed);
         self::assertSame('5', $parsed['page_size'] ?? null);
+        self::assertSame('10', $parsed['limit'] ?? null);
         self::assertArrayNotHasKey('nullable', $parsed);
         self::assertArrayNotHasKey('bad', $parsed);
-        self::assertCount(1, $parsed);
+        self::assertCount(2, $parsed);
 
         $lines = iterator_to_array($client->executeStreamedApiRequest(
             'GET',

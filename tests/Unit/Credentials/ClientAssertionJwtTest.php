@@ -21,13 +21,18 @@ final class ClientAssertionJwtTest extends TestCase
             keyId: 'key-1',
         );
 
-        $jwt = ClientAssertionJwt::sign($credentials, 1_700_000_000, 'jti-123');
+        $issuedAt = 1_700_000_000;
+        $jwt = ClientAssertionJwt::sign($credentials, $issuedAt, 'jti-123');
         $parts = explode('.', $jwt);
         self::assertCount(3, $parts);
 
         $header = $this->decodeJwtPart($parts[0]);
         self::assertSame('RS256', $header['alg']);
         self::assertSame('key-1', $header['kid']);
+
+        $payload = $this->decodeJwtPart($parts[1]);
+        self::assertSame($issuedAt, $payload['iat']);
+        self::assertSame($issuedAt + 300, $payload['exp']);
     }
 
     public function testEmptyKeyIdIsOmittedFromHeader(): void

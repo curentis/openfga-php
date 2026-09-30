@@ -345,12 +345,12 @@ final class OpenFgaClient implements OpenFgaClientInterface
     ): ResponseInterface {
         $normalizedPathParams = $this->normalizeScalarParams($pathParams);
         $normalizedQuery = $this->normalizeScalarParams($query);
-        PathTemplate::expand($path, $normalizedPathParams);
+        $expandedPath = PathTemplate::expand($path, $normalizedPathParams);
 
         return $this->transport->send(
             $method,
-            $path,
-            $normalizedPathParams,
+            $expandedPath,
+            [],
             $normalizedQuery,
             $body,
             $this->headers($options),
