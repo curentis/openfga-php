@@ -11,6 +11,30 @@ use PHPUnit\Framework\TestCase;
 
 final class ClientAssertionTest extends TestCase
 {
+    public function testRejectsEmptyClientId(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientAssertion('', RsaPrivateKeyFixture::pem(), 'issuer.example', 'aud');
+    }
+
+    public function testRejectsEmptyPrivateKey(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientAssertion('client', '', 'issuer.example', 'aud');
+    }
+
+    public function testRejectsEmptyIssuer(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientAssertion('client', RsaPrivateKeyFixture::pem(), '', 'aud');
+    }
+
+    public function testRejectsEmptyAudience(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientAssertion('client', RsaPrivateKeyFixture::pem(), 'issuer.example', '');
+    }
+
     public function testRejectsUnsupportedAlgorithm(): void
     {
         $this->expectException(FgaValidationException::class);

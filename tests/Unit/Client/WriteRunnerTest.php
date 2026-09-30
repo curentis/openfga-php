@@ -16,6 +16,43 @@ use Nyholm\Psr7\Response;
 
 final class WriteRunnerTest extends MockTransportTestCase
 {
+    public function testTransactionalWriteUsesSingleApiCall(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"writes":[]}'));
+        $request = new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]);
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            $request,
+            null,
+            new WriteOptions(),
+            [],
+        );
+
+        self::assertCount(1, $mock->getRequests());
+        self::assertSame([], $response->tupleResults);
+        self::assertNotNull($response->response);
+    }
+
+    public function testEmptyWriteRequestStillPerformsTransactionalCall(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(),
+            null,
+            new WriteOptions(transaction: new TransactionOptions(disable: true)),
+            [],
+        );
+
+        self::assertCount(1, $mock->getRequests());
+    }
+
     public function testNonTransactionalWriteContinuesAfterFailure(): void
     {
         $mock = new MockClient();

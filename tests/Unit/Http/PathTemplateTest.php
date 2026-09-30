@@ -23,4 +23,15 @@ final class PathTemplateTest extends TestCase
         $this->expectException(FgaValidationException::class);
         PathTemplate::expand('/stores/{store_id}/check', []);
     }
+
+    public function testNullParameterThrows(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        PathTemplate::expand('/stores/{store_id}/check', ['store_id' => null]);
+    }
+
+    public function testPathWithoutPlaceholdersIsReturnedUnchanged(): void
+    {
+        self::assertSame('/healthz', PathTemplate::expand('/healthz', []));
+    }
 }

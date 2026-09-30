@@ -62,6 +62,17 @@ final class TokenProviderTest extends TestCase
         self::assertCount(1, $mock->getRequests());
     }
 
+    public function testOmitsScopeWhenNotConfigured(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"plain","expires_in":3600}'));
+        $provider = $this->provider($mock, new ClientCredentials('client', 'secret', 'issuer.example', 'audience'));
+
+        $provider->getAccessToken();
+        $body = urldecode((string) $this->lastTokenRequest($mock)->getBody());
+        self::assertStringNotContainsString('scope=', $body);
+    }
+
     public function testIncludesScopeForClientCredentials(): void
     {
         $mock = new MockClient();

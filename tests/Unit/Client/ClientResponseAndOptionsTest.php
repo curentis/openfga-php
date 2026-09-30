@@ -15,6 +15,7 @@ use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteTupleResult;
+use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Model\BatchCheckSingleResult;
 use PHPUnit\Framework\TestCase;
 
@@ -43,5 +44,23 @@ final class ClientResponseAndOptionsTest extends TestCase
         self::assertSame([], (new RequestOptions())->headers);
         self::assertNull((new ConflictOptions())->onDuplicateWrites);
         self::assertFalse((new WriteOptions())->transaction->disable);
+    }
+
+    public function testWriteOptionsRejectsInvalidMaxPerChunk(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new WriteOptions(maxPerChunk: 0);
+    }
+
+    public function testBatchCheckOptionsRejectsOutOfRangeBatchSize(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new BatchCheckOptions(maxBatchSize: 0);
+    }
+
+    public function testRetryOptionsRejectsInvalidMinWait(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new RetryOptions(minWaitMs: 0);
     }
 }

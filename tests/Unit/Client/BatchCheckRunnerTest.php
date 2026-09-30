@@ -14,6 +14,27 @@ use Nyholm\Psr7\Response;
 
 final class BatchCheckRunnerTest extends MockTransportTestCase
 {
+    public function testEmptyChecksReturnsEmptyResponse(): void
+    {
+        $runner = new BatchCheckRunner($this->openFgaApi(new MockClient()));
+        $response = $runner->run('01ARZ3NDEKTSV4RRFFQ69G5FAV', [], new BatchCheckOptions(), null, null, []);
+
+        self::assertSame([], $response->results);
+    }
+
+    public function testMissingCorrelationEntryUsesEmptyResult(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{}}'));
+        $runner = new BatchCheckRunner($this->openFgaApi($mock));
+        $checks = [new ClientBatchCheckItem('user:u', 'viewer', 'doc:1', correlationId: 'cid-1')];
+
+        $response = $runner->run('01ARZ3NDEKTSV4RRFFQ69G5FAV', $checks, new BatchCheckOptions(), null, null, []);
+
+        self::assertCount(1, $response->results);
+        self::assertNull($response->results[0]->allowed);
+    }
+
     public function testChunksLargeBatchAndPreservesOrder(): void
     {
         $mock = new MockClient();

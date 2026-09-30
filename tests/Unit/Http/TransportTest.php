@@ -52,6 +52,54 @@ final class TransportTest extends TestCase
         );
     }
 
+    public function testSendJsonReturnsEmptyArrayForEmptyBody(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], ''));
+        $transport = $this->transport($mock);
+
+        self::assertSame([], $transport->sendJson('GET', '/stores'));
+    }
+
+    public function testSendJsonDecodesResponseBody(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"stores":[]}'));
+        $transport = $this->transport($mock);
+
+        self::assertSame(['stores' => []], $transport->sendJson('GET', '/stores'));
+    }
+
+    public function testQueryParametersSupportArraysAndSkipNulls(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $transport = $this->transport($mock);
+
+        $transport->send('GET', '/stores', [], [
+            'page_size' => 10,
+            'continuation_token' => null,
+            'types' => ['a', null, 'b'],
+        ]);
+
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(\Psr\Http\Message\RequestInterface::class, $request);
+        self::assertSame('page_size=10&types=a&types=b', $request->getUri()->getQuery());
+    }
+
+    public function testRequestWithoutBodyOmitsContentType(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $transport = $this->transport($mock);
+
+        $transport->send('GET', '/stores');
+
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(\Psr\Http\Message\RequestInterface::class, $request);
+        self::assertSame('', $request->getHeaderLine('Content-Type'));
+    }
+
     public function testEmptyJsonObjectEncodesAsObject(): void
     {
         $mock = new MockClient();

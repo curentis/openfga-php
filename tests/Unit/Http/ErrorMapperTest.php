@@ -93,6 +93,50 @@ final class ErrorMapperTest extends TestCase
         self::assertSame(3000, $exception->retryAfterMs);
     }
 
+    public function testEmptyResponseBodyMapsToMinimalMessage(): void
+    {
+        $response = new Response(400, [], '');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertNull($exception->apiErrorCode);
+        self::assertSame('', $exception->apiErrorMessage);
+    }
+
+    public function testJsonNullBodyFallsBackToRawText(): void
+    {
+        $response = new Response(500, [], 'null');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertNull($exception->apiErrorCode);
+        self::assertSame('null', $exception->apiErrorMessage);
+        self::assertInstanceOf(FgaApiInternalException::class, $exception);
+    }
+
+    public function testMapsOther4xxToBaseApiException(): void
+    {
+        $response = new Response(402, [], '{"message":"payment required"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame(402, $exception->statusCode);
+        self::assertSame('payment required', $exception->apiErrorMessage);
+    }
+
+    public function testMaps5xxOutsideKnownListToInternalException(): void
+    {
+        $response = new Response(599, [], '{"message":"gateway"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertInstanceOf(FgaApiInternalException::class, $exception);
+    }
+
+    public function testFgaQueryIdHeaderIsUsedAsRequestId(): void
+    {
+        $response = new Response(500, ['Fga-Query-Id' => ['query-99']], '{"message":"err"}');
+        $exception = $this->mapper->map('POST', '/stores/s/check', 's', $response);
+
+        self::assertSame('query-99', $exception->requestId);
+    }
+
     public function testExceptionMessageNeverContainsResponseBodySecrets(): void
     {
         $response = new Response(401, [], '{"message":"unauthorized","client_secret":"leak"}');

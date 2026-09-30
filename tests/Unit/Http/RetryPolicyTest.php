@@ -214,6 +214,14 @@ final class RetryPolicyTest extends TestCase
         self::assertSame([], $this->sleeper->sleptMilliseconds);
     }
 
+    public function testMinWaitBelowOneThrowsValidationException(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('minWaitMs');
+
+        $this->policy(minWaitMs: 0);
+    }
+
     public function testMaxRetryAboveFifteenThrowsValidationException(): void
     {
         $this->expectException(FgaValidationException::class);

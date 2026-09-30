@@ -23,6 +23,20 @@ final class ClientConfigurationTest extends TestCase
         new ClientConfiguration(storeId: 'not-a-ulid');
     }
 
+    public function testRejectsInvalidAuthorizationModelId(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new ClientConfiguration(authorizationModelId: 'not-a-ulid');
+    }
+
+    public function testWithAuthorizationModelIdReturnsNewInstance(): void
+    {
+        $config = new ClientConfiguration();
+        $updated = $config->withAuthorizationModelId('01ARZ3NDEKTSV4RRFFQ69G5FAV');
+        self::assertNull($config->authorizationModelId);
+        self::assertSame('01ARZ3NDEKTSV4RRFFQ69G5FAV', $updated->authorizationModelId);
+    }
+
     public function testWithStoreIdReturnsNewInstance(): void
     {
         $config = new ClientConfiguration();

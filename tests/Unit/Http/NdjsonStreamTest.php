@@ -20,6 +20,25 @@ final class NdjsonStreamTest extends TestCase
         self::assertSame([['a' => 1], ['b' => 2]], $lines);
     }
 
+    public function testSkipsBlankLinesAndTrailingPayloadWithoutNewline(): void
+    {
+        $payload = "\n" . '{"a":1}' . "\n\n" . '{"b":2}';
+        $stream = new ChunkedStream($payload, 4);
+        $lines = iterator_to_array(NdjsonStream::decode($stream));
+
+        self::assertSame([['a' => 1], ['b' => 2]], $lines);
+    }
+
+    public function testStreamErrorWithoutMessageUsesDefaultText(): void
+    {
+        $payload = '{"error":{}}' . "\n";
+        $stream = new ChunkedStream($payload, 64);
+
+        $this->expectException(FgaApiException::class);
+        $this->expectExceptionMessage('Streamed API error');
+        iterator_to_array(NdjsonStream::decode($stream));
+    }
+
     public function testErrorLineThrowsMidStream(): void
     {
         $payload = '{"ok":true}' . "\n" . '{"error":{"message":"nope"}}' . "\n";
