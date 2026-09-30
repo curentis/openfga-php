@@ -34,4 +34,5 @@ final class PathTemplateTest extends TestCase
     {
         self::assertSame('/healthz', PathTemplate::expand('/healthz', []));
     }
+
 }

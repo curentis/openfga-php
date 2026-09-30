@@ -8,7 +8,6 @@ use Curentis\OpenFga\Api\OpenFgaApi;
 use Curentis\OpenFga\Credentials\ClientAssertion;
 use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Credentials\TokenProvider;
-use Curentis\OpenFga\Http\ErrorMapper;
 use Curentis\OpenFga\Http\NativeClock;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Curentis\OpenFga\Http\SystemSleeper;
@@ -51,7 +50,6 @@ final class OpenFgaClientFactory
                 $retryPolicy,
                 $clock,
                 $randomizer,
-                new ErrorMapper(),
                 $configuration->tokenCache,
             );
             $tokenResolver = static function () use ($tokenProvider): string {

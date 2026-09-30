@@ -7,6 +7,7 @@ namespace Curentis\OpenFga\Tests\Unit\Http;
 use Curentis\OpenFga\Exception\FgaApiException;
 use Curentis\OpenFga\Http\NdjsonStream;
 use Curentis\OpenFga\Tests\Support\ChunkedStream;
+use Curentis\OpenFga\Tests\Support\EmptyReadStream;
 use PHPUnit\Framework\TestCase;
 
 final class NdjsonStreamTest extends TestCase
@@ -18,6 +19,19 @@ final class NdjsonStreamTest extends TestCase
         $lines = iterator_to_array(NdjsonStream::decode($stream, 2));
 
         self::assertSame([['a' => 1], ['b' => 2]], $lines);
+    }
+
+    public function testEmptyReadEndsDecoding(): void
+    {
+        self::assertSame([], iterator_to_array(NdjsonStream::decode(new EmptyReadStream())));
+    }
+
+    public function testNonObjectJsonLineThrows(): void
+    {
+        $stream = new ChunkedStream('42' . "\n", 64);
+
+        $this->expectException(\JsonException::class);
+        iterator_to_array(NdjsonStream::decode($stream));
     }
 
     public function testSkipsBlankLinesAndTrailingPayloadWithoutNewline(): void

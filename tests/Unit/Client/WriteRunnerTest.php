@@ -53,6 +53,24 @@ final class WriteRunnerTest extends MockTransportTestCase
         self::assertCount(1, $mock->getRequests());
     }
 
+    public function testNonTransactionalDeleteFailureRecordsTupleError(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(deletes: [new ClientTupleKeyWithoutCondition('user:d', 'viewer', 'doc:4')]),
+            null,
+            new WriteOptions(transaction: new TransactionOptions(disable: true)),
+            [],
+        );
+
+        self::assertFalse($response->tupleResults[0]->success);
+        self::assertSame('delete', $response->tupleResults[0]->operation);
+    }
+
     public function testNonTransactionalWriteContinuesAfterFailure(): void
     {
         $mock = new MockClient();

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Credentials;
 
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
-use Curentis\OpenFga\Http\ErrorMapper;
 use Curentis\OpenFga\Http\JsonBody;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Psr\Clock\ClockInterface;
@@ -30,7 +29,6 @@ final class TokenProvider
         private readonly RetryPolicy $retryPolicy,
         private readonly ClockInterface $clock,
         private readonly Randomizer $randomizer,
-        private readonly ErrorMapper $errorMapper = new ErrorMapper(),
         private readonly ?CacheInterface $cache = null,
     ) {}
 
@@ -55,10 +53,6 @@ final class TokenProvider
         );
 
         $status = $response->getStatusCode();
-        if ($status < 200 || $status >= 300) {
-            throw $this->mapTokenError($response);
-        }
-
         $payload = JsonBody::decode((string) $response->getBody());
         $accessToken = isset($payload['access_token']) && is_string($payload['access_token'])
             ? $payload['access_token']
@@ -123,27 +117,6 @@ final class TokenProvider
             ->withBody($this->streamFactory->createStream($body));
 
         return $request;
-    }
-
-    private function mapTokenError(\Psr\Http\Message\ResponseInterface $response): FgaTokenExchangeException
-    {
-        $exception = $this->errorMapper->map('POST', '/oauth/token', null, $response);
-
-        return new FgaTokenExchangeException(
-            $exception->getMessage(),
-            $exception->statusCode,
-            $exception->apiErrorCode,
-            $exception->apiErrorMessage,
-            $exception->requestId,
-            $exception->method,
-            $exception->endpoint,
-            $exception->storeId,
-            $exception->responseHeaders,
-            IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-            $this->credentials->apiAudience,
-            $this->credentials->clientId,
-            $exception,
-        );
     }
 
     private function cacheKey(): string

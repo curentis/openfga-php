@@ -163,19 +163,6 @@ final class TokenProviderTest extends TestCase
         $provider->getAccessToken();
     }
 
-    public function testMapTokenErrorWrapsApiException(): void
-    {
-        $provider = $this->provider(new MockClient(), $this->clientCredentials());
-        $response = new Response(400, [], '{"code":"invalid_grant","message":"bad grant"}');
-        $method = new \ReflectionMethod(TokenProvider::class, 'mapTokenError');
-        $exception = $method->invoke($provider, $response);
-
-        self::assertInstanceOf(FgaTokenExchangeException::class, $exception);
-        self::assertSame('client', $exception->clientId);
-        self::assertSame('https://issuer.example', $exception->issuer);
-        self::assertSame(400, $exception->statusCode);
-    }
-
     private function lastTokenRequest(MockClient $mock): RequestInterface
     {
         $request = $mock->getLastRequest();

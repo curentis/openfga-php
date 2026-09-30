@@ -32,4 +32,23 @@ final class OpenFgaClientListRelationsTest extends MockTransportTestCase
         self::assertSame(['viewer', 'owner'], $response->relations);
         self::assertCount(1, $mock->getRequests());
     }
+
+    public function testListRelationsIgnoresMissingOrDeniedResults(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], json_encode([
+            'result' => [
+                'viewer' => ['allowed' => false],
+            ],
+        ], JSON_THROW_ON_ERROR)));
+
+        $client = $this->openFgaClient($mock);
+        $response = $client->listRelations(new ClientListRelationsRequest(
+            'user:anne',
+            'document:roadmap',
+            ['viewer', 'editor'],
+        ));
+
+        self::assertSame([], $response->relations);
+    }
 }

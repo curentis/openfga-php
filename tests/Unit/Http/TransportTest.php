@@ -70,6 +70,19 @@ final class TransportTest extends TestCase
         self::assertSame(['stores' => []], $transport->sendJson('GET', '/stores'));
     }
 
+    public function testQueryWithOnlyNullValuesOmitsQueryString(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $transport = $this->transport($mock);
+
+        $transport->send('GET', '/stores', [], ['ignored' => null]);
+
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(\Psr\Http\Message\RequestInterface::class, $request);
+        self::assertSame('', $request->getUri()->getQuery());
+    }
+
     public function testQueryParametersSupportArraysAndSkipNulls(): void
     {
         $mock = new MockClient();

@@ -93,6 +93,15 @@ final class ErrorMapperTest extends TestCase
         self::assertSame(3000, $exception->retryAfterMs);
     }
 
+    public function testEmptyApiErrorCodeIsOmittedFromFormattedMessage(): void
+    {
+        $response = new Response(400, [], '{"code":"","message":"bad"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame('', $exception->apiErrorCode);
+        self::assertStringNotContainsString('API code:', $exception->getMessage());
+    }
+
     public function testEmptyResponseBodyMapsToMinimalMessage(): void
     {
         $response = new Response(400, [], '');
