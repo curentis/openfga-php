@@ -61,7 +61,7 @@ final class TokenProvider
             ? $payload['expires_in']
             : (isset($payload['expires_in']) && is_numeric($payload['expires_in'])
                 ? (int) $payload['expires_in']
-                : 0); // @codeCoverageIgnore
+                : 0);
 
         if ($accessToken === '' || $expiresIn <= 0) {
             throw new FgaTokenExchangeException(

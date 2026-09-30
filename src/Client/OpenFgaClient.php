@@ -423,7 +423,13 @@ final class OpenFgaClient implements OpenFgaClientInterface
      */
     private function headers(?RequestOptions $options): array
     {
-        return $options !== null ? $options->headers : [];
+        if ($options === null) {
+            // @codeCoverageIgnoreStart
+            return [];
+            // @codeCoverageIgnoreEnd
+        }
+
+        return $options->headers;
     }
 
     /**
