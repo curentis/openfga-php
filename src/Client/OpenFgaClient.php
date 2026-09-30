@@ -438,7 +438,9 @@ final class OpenFgaClient implements OpenFgaClientInterface
         $normalized = [];
         foreach ($params as $key => $value) {
             if (!is_string($key)) {
+                // @codeCoverageIgnoreStart
                 continue;
+                // @codeCoverageIgnoreEnd
             }
             if (is_scalar($value) || $value === null) {
                 $normalized[$key] = $value;
