@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - CI enforces **100%** PHPUnit line coverage (hand-written `src/`, excluding generated `src/Model`) and **100%** Infection MSI on PHP 8.3 with locked dependencies.
+- Extension points for consumers: `OpenFgaClientFactoryInterface`, `ClientComponentFactoryInterface` (write/batch-check runners, consistency body factory), `OpenFgaApiInterface`, `TransportInterface`, and optional `clientFactory` / `componentFactory` on `ClientConfiguration`.
 
 ### Fixed
 

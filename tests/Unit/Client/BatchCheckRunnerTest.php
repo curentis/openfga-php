@@ -16,10 +16,12 @@ final class BatchCheckRunnerTest extends MockTransportTestCase
 {
     public function testEmptyChecksReturnsEmptyResponse(): void
     {
-        $runner = new BatchCheckRunner($this->openFgaApi(new MockClient()));
+        $mock = new MockClient();
+        $runner = new BatchCheckRunner($this->openFgaApi($mock));
         $response = $runner->run('01ARZ3NDEKTSV4RRFFQ69G5FAV', [], new BatchCheckOptions(), null, null, []);
 
         self::assertSame([], $response->results);
+        self::assertCount(0, $mock->getRequests());
     }
 
     public function testMissingCorrelationEntryUsesEmptyResult(): void

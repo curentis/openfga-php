@@ -36,6 +36,8 @@ final readonly class ClientConfiguration
         public ?StreamFactoryInterface $streamFactory = null,
         public ?CacheInterface $tokenCache = null,
         public float $timeoutSeconds = 10.0,
+        public ?OpenFgaClientFactoryInterface $clientFactory = null,
+        public ?ClientComponentFactoryInterface $componentFactory = null,
     ) {
         $this->validate();
     }
@@ -73,6 +75,8 @@ final readonly class ClientConfiguration
             streamFactory: $this->streamFactory,
             tokenCache: $this->tokenCache,
             timeoutSeconds: $this->timeoutSeconds,
+            clientFactory: $this->clientFactory,
+            componentFactory: $this->componentFactory,
         );
     }
 
@@ -90,6 +94,8 @@ final readonly class ClientConfiguration
             streamFactory: $this->streamFactory,
             tokenCache: $this->tokenCache,
             timeoutSeconds: $this->timeoutSeconds,
+            clientFactory: $this->clientFactory,
+            componentFactory: $this->componentFactory,
         );
     }
 }

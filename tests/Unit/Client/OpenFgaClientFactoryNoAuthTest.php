@@ -40,4 +40,23 @@ final class OpenFgaClientFactoryNoAuthTest extends TestCase
         self::assertInstanceOf(RequestInterface::class, $request);
         self::assertSame('', $request->getHeaderLine('Authorization'));
     }
+
+    public function testCreateUsesDefaultClockAndRandomizerWhenOmitted(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $factories = new Psr17Factory();
+
+        $client = OpenFgaClientFactory::create(
+            new ClientConfiguration(
+                storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                httpClient: $mock,
+                requestFactory: $factories,
+                streamFactory: $factories,
+            ),
+        );
+
+        self::assertSame([], $client->listStores()->stores);
+        self::assertCount(1, $mock->getRequests());
+    }
 }

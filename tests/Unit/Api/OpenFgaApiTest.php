@@ -112,6 +112,18 @@ final class OpenFgaApiTest extends MockTransportTestCase
         self::assertStringContainsString('continuation_token=tok', $query);
     }
 
+    public function testReadChangesOmitsEmptyContinuationToken(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"changes":[],"continuation_token":""}'));
+        $api = $this->openFgaApi($mock);
+
+        $api->readChanges(self::STORE_ID, continuationToken: '');
+
+        $query = $this->lastRequest($mock)->getUri()->getQuery();
+        self::assertStringNotContainsString('continuation_token', $query);
+    }
+
     public function testWriteAuthorizationModel(): void
     {
         $mock = new MockClient();

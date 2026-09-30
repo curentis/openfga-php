@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Api;
 
-use Curentis\OpenFga\Http\Transport;
+use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckResponse;
 use Curentis\OpenFga\Model\CheckBody;
@@ -31,16 +31,14 @@ use Curentis\OpenFga\Model\WriteAuthorizationModelResponse;
 use Curentis\OpenFga\Model\WriteBody;
 use Curentis\OpenFga\Model\WriteResponse;
 
-/**
- * @internal
- */
-final class OpenFgaApi
+final class OpenFgaApi implements OpenFgaApiInterface
 {
-    public function __construct(private readonly Transport $transport) {}
+    public function __construct(private readonly TransportInterface $transport) {}
 
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function listStores(
         ?int $pageSize = null,
         ?string $continuationToken = null,
@@ -64,6 +62,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function createStore(CreateStoreRequest $body, array $headers = []): CreateStoreResponse
     {
         return CreateStoreResponse::fromArray($this->transport->sendJson(
@@ -79,6 +78,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function getStore(string $storeId, array $headers = []): GetStoreResponse
     {
         return GetStoreResponse::fromArray($this->transport->sendJson(
@@ -95,6 +95,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function deleteStore(string $storeId, array $headers = []): void
     {
         $this->transport->send(
@@ -111,6 +112,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function readAuthorizationModels(
         string $storeId,
         ?int $pageSize = null,
@@ -134,6 +136,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function writeAuthorizationModel(
         string $storeId,
         WriteAuthorizationModelBody $body,
@@ -153,6 +156,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function readAuthorizationModel(
         string $storeId,
         string $authorizationModelId,
@@ -172,6 +176,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function read(
         string $storeId,
         ReadBody $body,
@@ -191,6 +196,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function write(string $storeId, WriteBody $body, array $headers = []): WriteResponse
     {
         return WriteResponse::fromArray($this->transport->sendJson(
@@ -207,6 +213,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function readChanges(
         string $storeId,
         ?string $type = null,
@@ -234,6 +241,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function check(string $storeId, CheckBody $body, array $headers = []): CheckResponse
     {
         return CheckResponse::fromArray($this->transport->sendJson(
@@ -250,6 +258,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function batchCheck(string $storeId, BatchCheckBody $body, array $headers = []): BatchCheckResponse
     {
         return BatchCheckResponse::fromArray($this->transport->sendJson(
@@ -266,6 +275,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function expand(string $storeId, ExpandBody $body, array $headers = []): ExpandResponse
     {
         return ExpandResponse::fromArray($this->transport->sendJson(
@@ -282,6 +292,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function listObjects(string $storeId, ListObjectsBody $body, array $headers = []): ListObjectsResponse
     {
         return ListObjectsResponse::fromArray($this->transport->sendJson(
@@ -298,6 +309,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function streamedListObjects(string $storeId, ListObjectsBody $body, array $headers = []): \Psr\Http\Message\ResponseInterface
     {
         return $this->transport->send(
@@ -314,6 +326,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function listUsers(string $storeId, ListUsersBody $body, array $headers = []): ListUsersResponse
     {
         return ListUsersResponse::fromArray($this->transport->sendJson(
@@ -330,6 +343,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function readAssertions(
         string $storeId,
         string $authorizationModelId,
@@ -349,6 +363,7 @@ final class OpenFgaApi
     /**
      * @param array<string, string> $headers
      */
+    #[\Override]
     public function writeAssertions(
         string $storeId,
         string $authorizationModelId,

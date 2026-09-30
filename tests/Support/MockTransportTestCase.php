@@ -6,6 +6,7 @@ namespace Curentis\OpenFga\Tests\Support;
 
 use Curentis\OpenFga\Api\OpenFgaApi;
 use Curentis\OpenFga\Client\ClientConfiguration;
+use Curentis\OpenFga\Client\DefaultClientComponentFactory;
 use Curentis\OpenFga\Client\OpenFgaClient;
 use Curentis\OpenFga\Credentials\NoCredentials;
 use Curentis\OpenFga\Http\AuthorizationHeaderProvider;
@@ -30,13 +31,29 @@ abstract class MockTransportTestCase extends TestCase
         string $storeId = '01ARZ3NDEKTSV4RRFFQ69G5FAV',
         ?string $authorizationModelId = '01HZZZZZZZZZZZZZZZZZZZZZZZ',
     ): OpenFgaClient {
-        $transport = $this->transport($mock);
-        $configuration = new ClientConfiguration(
-            storeId: $storeId,
-            authorizationModelId: $authorizationModelId,
+        return $this->openFgaClientWithConfiguration(
+            $mock,
+            new ClientConfiguration(
+                storeId: $storeId,
+                authorizationModelId: $authorizationModelId,
+            ),
         );
+    }
 
-        return new OpenFgaClient($configuration, new OpenFgaApi($transport), $transport);
+    protected function openFgaClientWithConfiguration(MockClient $mock, ClientConfiguration $configuration): OpenFgaClient
+    {
+        $transport = $this->transport($mock);
+        $api = new OpenFgaApi($transport);
+        $components = new DefaultClientComponentFactory();
+
+        return new OpenFgaClient(
+            $configuration,
+            $api,
+            $transport,
+            $components->createWriteRunner($api),
+            $components->createBatchCheckRunner($api),
+            $components->createConsistencyBodyFactory(),
+        );
     }
 
     protected function lastRequest(MockClient $mock): RequestInterface

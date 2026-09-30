@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Client;
 
-use Curentis\OpenFga\Api\OpenFgaApi;
+use Curentis\OpenFga\Api\OpenFgaApiInterface;
 use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
@@ -15,17 +15,15 @@ use Curentis\OpenFga\Model\BatchCheckSingleResult;
 use Curentis\OpenFga\Model\CheckRequestTupleKey;
 use Curentis\OpenFga\Model\ConsistencyPreference;
 
-/**
- * @internal
- */
-final class BatchCheckRunner
+final class BatchCheckRunner implements BatchCheckRunnerInterface
 {
-    public function __construct(private readonly OpenFgaApi $api) {}
+    public function __construct(private readonly OpenFgaApiInterface $api) {}
 
     /**
      * @param list<ClientBatchCheckItem>   $checks
      * @param array<string, string>      $headers
      */
+    #[\Override]
     public function run(
         string $storeId,
         array $checks,
@@ -93,7 +91,7 @@ final class BatchCheckRunner
             if (isset($seen[$correlationId])) {
                 throw new FgaValidationException(sprintf('Duplicate correlation_id "%s" in batchCheck.', $correlationId));
             }
-            $seen[$correlationId] = true;
+            $seen[$correlationId] = 1;
 
             $prepared[] = [
                 'correlationId' => $correlationId,

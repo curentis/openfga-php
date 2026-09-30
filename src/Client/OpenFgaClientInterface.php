@@ -41,9 +41,9 @@ use Psr\Http\Message\ResponseInterface;
 
 interface OpenFgaClientInterface
 {
-    public function withStoreId(string $storeId): self;
+    public function withStoreId(string $storeId): OpenFgaClientInterface;
 
-    public function withAuthorizationModelId(string $authorizationModelId): self;
+    public function withAuthorizationModelId(string $authorizationModelId): OpenFgaClientInterface;
 
     public function listStores(?PaginationOptions $page = null, ?string $name = null, ?RequestOptions $options = null): ListStoresResponse;
 

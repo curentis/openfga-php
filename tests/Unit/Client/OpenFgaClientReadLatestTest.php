@@ -46,6 +46,7 @@ final class OpenFgaClientReadLatestTest extends MockTransportTestCase
 
         $requests = $mock->getRequests();
         self::assertCount(2, $requests);
+        self::assertStringContainsString('page_size=1', $requests[0]->getUri()->getQuery());
         self::assertStringContainsString(
             '/authorization-models/' . $modelId,
             $requests[1]->getUri()->getPath(),

@@ -7,13 +7,11 @@ namespace Curentis\OpenFga\Client;
 use Psr\Clock\ClockInterface;
 use Random\Randomizer;
 
-final class OpenFgaClientFactory
+interface OpenFgaClientFactoryInterface
 {
-    public static function create(
+    public function create(
         ClientConfiguration $configuration,
         ?ClockInterface $clock = null,
         ?Randomizer $randomizer = null,
-    ): OpenFgaClientInterface {
-        return (new DefaultOpenFgaClientFactory())->create($configuration, $clock, $randomizer);
-    }
+    ): OpenFgaClientInterface;
 }

@@ -13,10 +13,7 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Psr\Http\Message\UriInterface;
 
-/**
- * @internal
- */
-final class Transport
+final class Transport implements TransportInterface
 {
     /**
      * @param array<string, string> $defaultHeaders
@@ -37,6 +34,7 @@ final class Transport
      * @param array<string, scalar|null|list<scalar|null>> $query
      * @param array<string, string>         $requestHeaders
      */
+    #[\Override]
     public function send(
         string $method,
         string $pathTemplate,
@@ -64,6 +62,7 @@ final class Transport
      *
      * @return array<string, mixed>
      */
+    #[\Override]
     public function sendJson(
         string $method,
         string $pathTemplate,
@@ -87,6 +86,7 @@ final class Transport
      * @param array<string, scalar|null|list<scalar|null>> $query
      * @param array<string, string>         $requestHeaders
      */
+    #[\Override]
     public function buildRequest(
         string $method,
         string $pathTemplate,
