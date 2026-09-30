@@ -66,6 +66,8 @@ jobs:
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
         run: composer test:unit:coverage
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
+        run: composer test:mutation
+      - if: matrix.php == '8.3' && matrix.deps == 'locked'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: build/clover.xml

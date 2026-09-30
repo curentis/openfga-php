@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CI enforces **100%** PHPUnit line coverage (hand-written `src/`, excluding generated `src/Model`) and **100%** Infection MSI on PHP 8.3 with locked dependencies.
+
+### Fixed
+
+- Codegen: deserialize explicit JSON `null` for nullable nested objects (e.g. tuple `condition`, type `metadata`) from live OpenFGA responses.
+
 ## [1.0.0] - 2026-09-30
 
 ### Added

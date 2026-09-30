@@ -1,0 +1,17 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ],
+        "excludes": [
+            "src/Model"
+        ]
+    },
+    "minMsi": 100,
+    "minCoveredMsi": 100,
+    "threads": "max",
+    "phpUnit": {
+        "configDir": "."
+    }
+}

@@ -14,6 +14,7 @@ use Curentis\OpenFga\Http\Transport;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -36,6 +37,14 @@ abstract class MockTransportTestCase extends TestCase
         );
 
         return new OpenFgaClient($configuration, new OpenFgaApi($transport), $transport);
+    }
+
+    protected function lastRequest(MockClient $mock): RequestInterface
+    {
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(RequestInterface::class, $request);
+
+        return $request;
     }
 
     protected function transport(MockClient $mock): Transport

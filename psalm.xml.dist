@@ -20,6 +20,11 @@
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
+        <MixedAssignment>
+            <errorLevel type="suppress">
+                <file name="tests/Support/SimpleArrayCache.php"/>
+            </errorLevel>
+        </MixedAssignment>
         <PropertyNotSetInConstructor>
             <errorLevel type="suppress">
                 <directory name="tests"/>
