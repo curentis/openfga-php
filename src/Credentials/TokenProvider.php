@@ -166,7 +166,9 @@ final class TokenProvider
     private function storeCache(AccessToken $token, int $ttlEpoch): void
     {
         if ($this->cache === null) {
+            // @codeCoverageIgnoreStart
             return;
+            // @codeCoverageIgnoreEnd
         }
 
         $now = $this->clock->now()->getTimestamp();

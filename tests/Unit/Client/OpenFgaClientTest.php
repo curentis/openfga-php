@@ -11,6 +11,7 @@ use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
+use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Exception\FgaRequiredParamException;
 use Curentis\OpenFga\Model\ConsistencyPreference;
 use Curentis\OpenFga\Model\ExpandBody;
@@ -117,12 +118,14 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $mock = new MockClient();
         $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{"changes":[],"continuation_token":""}'));
         $mock->addResponse(new Response(200, [], '{"allowed":true}'));
         $mock->addResponse(new Response(200, [], '{"result":{"c1":{"allowed":true}}}'));
         $client = $this->openFgaClient($mock);
 
-        $client->writeTuples([new ClientTupleKey('user:a', 'viewer', 'doc:1')]);
+        $client->write(new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]));
+        $client->writeTuples([new ClientTupleKey('user:b', 'viewer', 'doc:2')]);
         $client->deleteTuples([new ClientTupleKeyWithoutCondition('user:a', 'viewer', 'doc:1')]);
         self::assertSame([], $client->readChanges(type: 'document')->changes);
 
@@ -152,6 +155,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $mock->addResponse(new Response(200, [], '{"objects":[]}'));
         $mock->addResponse(new Response(200, [], '{"objects":[]}'));
         $mock->addResponse(new Response(200, [], '{"users":[]}'));
+        $mock->addResponse(new Response(200, [], '{"users":[]}'));
         $client = $this->openFgaClient($mock);
 
         $client->expand(
@@ -169,6 +173,13 @@ final class OpenFgaClientTest extends MockTransportTestCase
             ConsistencyPreference::HIGHER_CONSISTENCY,
         );
         self::assertStringContainsString('HIGHER_CONSISTENCY', (string) $this->lastRequest($mock)->getBody());
+
+        $client->listUsers(new ListUsersBody(
+            object: new FgaObject(id: '1', type: 'document'),
+            relation: 'viewer',
+            userFilters: [new UserTypeFilter(type: 'user')],
+        ));
+        self::assertStringNotContainsString('consistency', (string) $this->lastRequest($mock)->getBody());
 
         $client->listUsers(
             new ListUsersBody(
