@@ -20,15 +20,23 @@ final readonly class CheckResponse implements \JsonSerializable
         $allowed = null;
         if (array_key_exists('allowed', $data)) {
             $allowed = $data['allowed'];
-            if (!is_bool($allowed)) {
-                throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
+            if ($allowed === null) {
+                $allowed = null;
+            } else {
+                if (!is_bool($allowed)) {
+                    throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
+                }
             }
         }
         $resolution = null;
         if (array_key_exists('resolution', $data)) {
             $resolution = $data['resolution'];
-            if (!is_string($resolution)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'resolution'));
+            if ($resolution === null) {
+                $resolution = null;
+            } else {
+                if (!is_string($resolution)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'resolution'));
+                }
             }
         }
         return new self(allowed: $allowed, resolution: $resolution);

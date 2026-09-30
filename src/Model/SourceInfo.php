@@ -19,8 +19,12 @@ final readonly class SourceInfo implements \JsonSerializable
         $file = null;
         if (array_key_exists('file', $data)) {
             $file = $data['file'];
-            if (!is_string($file)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'file'));
+            if ($file === null) {
+                $file = null;
+            } else {
+                if (!is_string($file)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'file'));
+                }
             }
         }
         return new self(file: $file);

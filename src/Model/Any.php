@@ -19,8 +19,12 @@ final readonly class Any implements \JsonSerializable
         $atType = null;
         if (array_key_exists('@type', $data)) {
             $atType = $data['@type'];
-            if (!is_string($atType)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . '@type'));
+            if ($atType === null) {
+                $atType = null;
+            } else {
+                if (!is_string($atType)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . '@type'));
+                }
             }
         }
         return new self(atType: $atType);

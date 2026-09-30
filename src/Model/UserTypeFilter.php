@@ -27,8 +27,12 @@ final readonly class UserTypeFilter implements \JsonSerializable
         $relation = null;
         if (array_key_exists('relation', $data)) {
             $relation = $data['relation'];
-            if (!is_string($relation)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            if ($relation === null) {
+                $relation = null;
+            } else {
+                if (!is_string($relation)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+                }
             }
         }
         return new self(type: $type, relation: $relation);

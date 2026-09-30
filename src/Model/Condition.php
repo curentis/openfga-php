@@ -37,16 +37,24 @@ final readonly class Condition implements \JsonSerializable
         $metadata = null;
         if (array_key_exists('metadata', $data)) {
             $metadata = $data['metadata'];
-            if (!is_array($metadata)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
+            if ($metadata === null) {
+                $metadata = null;
+            } else {
+                if (!is_array($metadata)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
+                }
+                $metadata = ConditionMetadata::fromArray($metadata, ($path === '' ? '' : $path . '.') . 'metadata');
             }
-            $metadata = ConditionMetadata::fromArray($metadata, ($path === '' ? '' : $path . '.') . 'metadata');
         }
         $parameters = null;
         if (array_key_exists('parameters', $data)) {
             $parameters = $data['parameters'];
-            if (!is_array($parameters)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'parameters'));
+            if ($parameters === null) {
+                $parameters = null;
+            } else {
+                if (!is_array($parameters)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'parameters'));
+                }
             }
         }
         return new self(expression: $expression, name: $name, metadata: $metadata, parameters: $parameters);

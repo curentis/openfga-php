@@ -11,6 +11,8 @@ use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
+use Curentis\OpenFga\Model\ReadBody;
+use Curentis\OpenFga\Model\ReadRequestTupleKey;
 use Curentis\OpenFga\Model\WriteAuthorizationModelBody;
 use Curentis\OpenFga\Tests\Support\RequiresOpenFgaServerTrait;
 use PHPUnit\Framework\TestCase;
@@ -48,6 +50,11 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
             ]))->authorizationModelId;
             $fga = $fga->withAuthorizationModelId($modelId);
 
+            $latest = $fga->readLatestAuthorizationModel();
+            self::assertNotNull($latest);
+            self::assertNotNull($latest->authorizationModel);
+            self::assertSame($modelId, $latest->authorizationModel->id);
+
             $tuple = new ClientTupleKey('user:anne', 'viewer', 'document:plan');
             $fga->writeTuples([$tuple]);
 
@@ -62,6 +69,15 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
                 'document:plan',
             ))->allowed);
 
+            $read = $fga->read(new ReadBody(
+                tupleKey: new ReadRequestTupleKey(
+                    user: 'user:anne',
+                    relation: 'viewer',
+                    object: 'document:plan',
+                ),
+            ));
+            self::assertCount(1, $read->tuples);
+
             $fga->deleteTuples([
                 new ClientTupleKeyWithoutCondition('user:anne', 'viewer', 'document:plan'),
             ], new WriteOptions(conflict: new ConflictOptions(onMissingDeletes: 'ignore')));
@@ -71,6 +87,15 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
                 'viewer',
                 'document:plan',
             ))->allowed);
+
+            $readAfterDelete = $fga->read(new ReadBody(
+                tupleKey: new ReadRequestTupleKey(
+                    user: 'user:anne',
+                    relation: 'viewer',
+                    object: 'document:plan',
+                ),
+            ));
+            self::assertSame([], $readAfterDelete->tuples);
         } finally {
             $fga->deleteStore();
         }

@@ -44,8 +44,12 @@ final readonly class WriteAuthorizationModelBody implements \JsonSerializable
         $conditions = null;
         if (array_key_exists('conditions', $data)) {
             $conditions = $data['conditions'];
-            if (!is_array($conditions)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
+            if ($conditions === null) {
+                $conditions = null;
+            } else {
+                if (!is_array($conditions)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
+                }
             }
         }
         return new self(schemaVersion: $schemaVersion, typeDefinitions: $typeDefinitions, conditions: $conditions);

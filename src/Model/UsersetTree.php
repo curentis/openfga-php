@@ -19,10 +19,14 @@ final readonly class UsersetTree implements \JsonSerializable
         $root = null;
         if (array_key_exists('root', $data)) {
             $root = $data['root'];
-            if (!is_array($root)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'root'));
+            if ($root === null) {
+                $root = null;
+            } else {
+                if (!is_array($root)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'root'));
+                }
+                $root = Node::fromArray($root, ($path === '' ? '' : $path . '.') . 'root');
             }
-            $root = Node::fromArray($root, ($path === '' ? '' : $path . '.') . 'root');
         }
         return new self(root: $root);
     }

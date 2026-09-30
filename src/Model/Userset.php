@@ -25,49 +25,73 @@ final readonly class Userset implements \JsonSerializable
         $computedUserset = null;
         if (array_key_exists('computedUserset', $data)) {
             $computedUserset = $data['computedUserset'];
-            if (!is_array($computedUserset)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
+            if ($computedUserset === null) {
+                $computedUserset = null;
+            } else {
+                if (!is_array($computedUserset)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
+                }
+                $computedUserset = ObjectRelation::fromArray($computedUserset, ($path === '' ? '' : $path . '.') . 'computedUserset');
             }
-            $computedUserset = ObjectRelation::fromArray($computedUserset, ($path === '' ? '' : $path . '.') . 'computedUserset');
         }
         $difference = null;
         if (array_key_exists('difference', $data)) {
             $difference = $data['difference'];
-            if (!is_array($difference)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+            if ($difference === null) {
+                $difference = null;
+            } else {
+                if (!is_array($difference)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+                }
+                $difference = Difference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
             }
-            $difference = Difference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
         }
         $intersection = null;
         if (array_key_exists('intersection', $data)) {
             $intersection = $data['intersection'];
-            if (!is_array($intersection)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+            if ($intersection === null) {
+                $intersection = null;
+            } else {
+                if (!is_array($intersection)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+                }
+                $intersection = Usersets::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
             }
-            $intersection = Usersets::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
         }
         $thisUserset = null;
         if (array_key_exists('this', $data)) {
             $thisUserset = $data['this'];
-            if (!is_array($thisUserset)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'this'));
+            if ($thisUserset === null) {
+                $thisUserset = null;
+            } else {
+                if (!is_array($thisUserset)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'this'));
+                }
             }
         }
         $tupleToUserset = null;
         if (array_key_exists('tupleToUserset', $data)) {
             $tupleToUserset = $data['tupleToUserset'];
-            if (!is_array($tupleToUserset)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+            if ($tupleToUserset === null) {
+                $tupleToUserset = null;
+            } else {
+                if (!is_array($tupleToUserset)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+                }
+                $tupleToUserset = TupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
             }
-            $tupleToUserset = TupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
         }
         $union = null;
         if (array_key_exists('union', $data)) {
             $union = $data['union'];
-            if (!is_array($union)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+            if ($union === null) {
+                $union = null;
+            } else {
+                if (!is_array($union)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+                }
+                $union = Usersets::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
             }
-            $union = Usersets::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
         }
         return new self(computedUserset: $computedUserset, difference: $difference, intersection: $intersection, thisUserset: $thisUserset, tupleToUserset: $tupleToUserset, union: $union);
     }

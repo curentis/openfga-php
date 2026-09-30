@@ -52,8 +52,12 @@ final readonly class AuthorizationModel implements \JsonSerializable
         $conditions = null;
         if (array_key_exists('conditions', $data)) {
             $conditions = $data['conditions'];
-            if (!is_array($conditions)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
+            if ($conditions === null) {
+                $conditions = null;
+            } else {
+                if (!is_array($conditions)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
+                }
             }
         }
         return new self(id: $id, schemaVersion: $schemaVersion, typeDefinitions: $typeDefinitions, conditions: $conditions);

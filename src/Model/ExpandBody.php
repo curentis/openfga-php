@@ -29,31 +29,43 @@ final readonly class ExpandBody implements \JsonSerializable
         $authorizationModelId = null;
         if (array_key_exists('authorization_model_id', $data)) {
             $authorizationModelId = $data['authorization_model_id'];
-            if (!is_string($authorizationModelId)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            if ($authorizationModelId === null) {
+                $authorizationModelId = null;
+            } else {
+                if (!is_string($authorizationModelId)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                }
             }
         }
         $consistency = null;
         if (array_key_exists('consistency', $data)) {
             $consistency = $data['consistency'];
-            if (!is_string($consistency)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
-            }
-            if (!in_array($consistency, [
-                0 => 'UNSPECIFIED',
-                1 => 'MINIMIZE_LATENCY',
-                2 => 'HIGHER_CONSISTENCY',
-            ], true)) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+            if ($consistency === null) {
+                $consistency = null;
+            } else {
+                if (!is_string($consistency)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
+                if (!in_array($consistency, [
+                    0 => 'UNSPECIFIED',
+                    1 => 'MINIMIZE_LATENCY',
+                    2 => 'HIGHER_CONSISTENCY',
+                ], true)) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
             }
         }
         $contextualTuples = null;
         if (array_key_exists('contextual_tuples', $data)) {
             $contextualTuples = $data['contextual_tuples'];
-            if (!is_array($contextualTuples)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+            if ($contextualTuples === null) {
+                $contextualTuples = null;
+            } else {
+                if (!is_array($contextualTuples)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                }
+                $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
             }
-            $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
         }
         return new self(tupleKey: $tupleKey, authorizationModelId: $authorizationModelId, consistency: $consistency, contextualTuples: $contextualTuples);
     }

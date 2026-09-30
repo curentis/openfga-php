@@ -35,14 +35,18 @@ final readonly class WriteRequestWrites implements \JsonSerializable
         $onDuplicate = null;
         if (array_key_exists('on_duplicate', $data)) {
             $onDuplicate = $data['on_duplicate'];
-            if (!is_string($onDuplicate)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
-            }
-            if (!in_array($onDuplicate, [
-                0 => 'error',
-                1 => 'ignore',
-            ], true)) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
+            if ($onDuplicate === null) {
+                $onDuplicate = null;
+            } else {
+                if (!is_string($onDuplicate)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
+                }
+                if (!in_array($onDuplicate, [
+                    0 => 'error',
+                    1 => 'ignore',
+                ], true)) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
+                }
             }
         }
         return new self(tupleKeys: $tupleKeys, onDuplicate: $onDuplicate);

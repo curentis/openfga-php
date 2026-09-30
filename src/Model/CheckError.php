@@ -21,32 +21,44 @@ final readonly class CheckError implements \JsonSerializable
         $inputError = null;
         if (array_key_exists('input_error', $data)) {
             $inputError = $data['input_error'];
-            if (!is_string($inputError)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'input_error'));
-            }
-            try {
-                $inputError = ErrorCode::from($inputError);
-            } catch (\ValueError) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'input_error'));
+            if ($inputError === null) {
+                $inputError = null;
+            } else {
+                if (!is_string($inputError)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'input_error'));
+                }
+                try {
+                    $inputError = ErrorCode::from($inputError);
+                } catch (\ValueError) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'input_error'));
+                }
             }
         }
         $internalError = null;
         if (array_key_exists('internal_error', $data)) {
             $internalError = $data['internal_error'];
-            if (!is_string($internalError)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'internal_error'));
-            }
-            try {
-                $internalError = InternalErrorCode::from($internalError);
-            } catch (\ValueError) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'internal_error'));
+            if ($internalError === null) {
+                $internalError = null;
+            } else {
+                if (!is_string($internalError)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'internal_error'));
+                }
+                try {
+                    $internalError = InternalErrorCode::from($internalError);
+                } catch (\ValueError) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'internal_error'));
+                }
             }
         }
         $message = null;
         if (array_key_exists('message', $data)) {
             $message = $data['message'];
-            if (!is_string($message)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+            if ($message === null) {
+                $message = null;
+            } else {
+                if (!is_string($message)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                }
             }
         }
         return new self(inputError: $inputError, internalError: $internalError, message: $message);

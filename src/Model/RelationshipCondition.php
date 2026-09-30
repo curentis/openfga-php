@@ -28,8 +28,12 @@ final readonly class RelationshipCondition implements \JsonSerializable
         $context = null;
         if (array_key_exists('context', $data)) {
             $context = $data['context'];
-            if (!is_array($context)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+            if ($context === null) {
+                $context = null;
+            } else {
+                if (!is_array($context)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                }
             }
         }
         return new self(name: $name, context: $context);

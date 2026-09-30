@@ -20,15 +20,23 @@ final readonly class AbortedMessageResponse implements \JsonSerializable
         $code = null;
         if (array_key_exists('code', $data)) {
             $code = $data['code'];
-            if (!is_string($code)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
+            if ($code === null) {
+                $code = null;
+            } else {
+                if (!is_string($code)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
+                }
             }
         }
         $message = null;
         if (array_key_exists('message', $data)) {
             $message = $data['message'];
-            if (!is_string($message)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+            if ($message === null) {
+                $message = null;
+            } else {
+                if (!is_string($message)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                }
             }
         }
         return new self(code: $code, message: $message);

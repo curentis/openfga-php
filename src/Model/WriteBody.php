@@ -21,25 +21,37 @@ final readonly class WriteBody implements \JsonSerializable
         $authorizationModelId = null;
         if (array_key_exists('authorization_model_id', $data)) {
             $authorizationModelId = $data['authorization_model_id'];
-            if (!is_string($authorizationModelId)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            if ($authorizationModelId === null) {
+                $authorizationModelId = null;
+            } else {
+                if (!is_string($authorizationModelId)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                }
             }
         }
         $deletes = null;
         if (array_key_exists('deletes', $data)) {
             $deletes = $data['deletes'];
-            if (!is_array($deletes)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'deletes'));
+            if ($deletes === null) {
+                $deletes = null;
+            } else {
+                if (!is_array($deletes)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'deletes'));
+                }
+                $deletes = WriteRequestDeletes::fromArray($deletes, ($path === '' ? '' : $path . '.') . 'deletes');
             }
-            $deletes = WriteRequestDeletes::fromArray($deletes, ($path === '' ? '' : $path . '.') . 'deletes');
         }
         $writes = null;
         if (array_key_exists('writes', $data)) {
             $writes = $data['writes'];
-            if (!is_array($writes)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'writes'));
+            if ($writes === null) {
+                $writes = null;
+            } else {
+                if (!is_array($writes)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'writes'));
+                }
+                $writes = WriteRequestWrites::fromArray($writes, ($path === '' ? '' : $path . '.') . 'writes');
             }
-            $writes = WriteRequestWrites::fromArray($writes, ($path === '' ? '' : $path . '.') . 'writes');
         }
         return new self(authorizationModelId: $authorizationModelId, deletes: $deletes, writes: $writes);
     }
