@@ -150,6 +150,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $mock = new MockClient();
         $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{"objects":[]}'));
+        $mock->addResponse(new Response(200, [], '{"objects":[]}'));
         $mock->addResponse(new Response(200, [], '{"users":[]}'));
         $client = $this->openFgaClient($mock);
 
@@ -159,6 +160,9 @@ final class OpenFgaClientTest extends MockTransportTestCase
         );
         $expandBody = (string) $this->lastRequest($mock)->getBody();
         self::assertStringContainsString('HIGHER_CONSISTENCY', $expandBody);
+
+        $client->listObjects(new ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'));
+        self::assertStringNotContainsString('consistency', (string) $this->lastRequest($mock)->getBody());
 
         $client->listObjects(
             new ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'),

@@ -170,6 +170,16 @@ final class TokenProviderTest extends TestCase
         self::assertSame('num', $provider->getAccessToken());
     }
 
+    public function testNonNumericExpiresInTriggersInvalidTokenResponse(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"tok","expires_in":[]}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        $this->expectException(FgaTokenExchangeException::class);
+        $provider->getAccessToken();
+    }
+
     public function testInvalidTokenResponseThrowsExchangeException(): void
     {
         $mock = new MockClient();
