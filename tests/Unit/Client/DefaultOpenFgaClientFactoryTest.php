@@ -6,6 +6,7 @@ namespace Curentis\OpenFga\Tests\Unit\Client;
 
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\DefaultOpenFgaClientFactory;
+use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Client\OpenFgaClient;
 use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
 use Curentis\OpenFga\Client\OpenFgaClientInterface;
@@ -89,26 +90,24 @@ final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
         self::assertStringStartsWith('MARKER:', (string) $mock->getRequests()[0]->getBody());
     }
 
-    public function testCreateUsesExplicitStreamFactoryWhenProvided(): void
+    public function testCreateUsesExplicitHttpFactoriesForTokenProvider(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"access_token":"tok","expires_in":3600}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
 
         $client = (new DefaultOpenFgaClientFactory())->create(
             new ClientConfiguration(
-                storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                apiUrl: 'http://localhost:8080',
                 httpClient: $mock,
-                requestFactory: new Psr17Factory(),
+                requestFactory: new MarkingRequestFactory(),
                 streamFactory: new MarkingStreamFactory(),
+                credentials: new ClientCredentials('client', 'secret', 'issuer.example', 'audience'),
             ),
         );
 
-        $client->write(
-            new \Curentis\OpenFga\Client\Request\ClientWriteRequest(
-                writes: [new \Curentis\OpenFga\Client\Request\ClientTupleKey('user:a', 'viewer', 'doc:1')],
-            ),
-        );
-
+        $client->listStores();
+        self::assertSame('custom', $mock->getRequests()[0]->getHeaderLine('X-Request-Factory'));
         self::assertStringStartsWith('MARKER:', (string) $mock->getRequests()[0]->getBody());
     }
 

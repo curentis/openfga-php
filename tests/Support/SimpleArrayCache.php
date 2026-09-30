@@ -14,6 +14,9 @@ final class SimpleArrayCache implements CacheInterface
     /** @var array<string, int> */
     private array $expiry = [];
 
+    /** @var array<string, int> */
+    private array $lastTtlSeconds = [];
+
     #[\Override]
     public function get(string $key, mixed $default = null): mixed
     {
@@ -36,8 +39,14 @@ final class SimpleArrayCache implements CacheInterface
 
         $seconds = is_int($ttl) ? $ttl : 60;
         $this->expiry[$key] = time() + $seconds;
+        $this->lastTtlSeconds[$key] = $seconds;
 
         return true;
+    }
+
+    public function lastTtlSecondsFor(string $key): ?int
+    {
+        return $this->lastTtlSeconds[$key] ?? null;
     }
 
     #[\Override]

@@ -118,6 +118,43 @@ final class TokenProviderTest extends TestCase
         self::assertStringContainsString('scope=read', urldecode($body));
     }
 
+    public function testTokenRequestIncludesRequiredOAuthFields(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"plain","expires_in":3600}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        $provider->getAccessToken();
+        parse_str(urldecode((string) $this->lastTokenRequest($mock)->getBody()), $fields);
+        self::assertSame('client_credentials', $fields['grant_type'] ?? null);
+        self::assertSame('client', $fields['client_id'] ?? null);
+        self::assertSame('audience', $fields['audience'] ?? null);
+        self::assertSame('secret', $fields['client_secret'] ?? null);
+    }
+
+    public function testAlphabeticExpiresInTriggersInvalidTokenResponse(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"tok","expires_in":"not-a-number"}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        $this->expectException(FgaTokenExchangeException::class);
+        $provider->getAccessToken();
+    }
+
+    public function testCacheTtlMatchesTokenExpiryBuffer(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-ttl","expires_in":360}'));
+        $cache = new SimpleArrayCache();
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+
+        $provider->getAccessToken();
+        $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
+        self::assertIsString($cache->get($key));
+        self::assertSame(1, $cache->lastTtlSecondsFor($key));
+    }
+
     public function testClientAssertionUsesJwtBearerGrant(): void
     {
         $mock = new MockClient();
