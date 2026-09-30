@@ -32,8 +32,67 @@ final class WriteRunnerTest extends MockTransportTestCase
         );
 
         self::assertCount(1, $mock->getRequests());
+        self::assertSame('Write', $mock->getRequests()[0]->getHeaderLine('X-OpenFGA-Client-Method'));
         self::assertSame([], $response->tupleResults);
         self::assertNotNull($response->response);
+    }
+
+    public function testNonTransactionalChunkWithWritesAndDeletesRecordsAllTupleResults(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(
+                writes: [new ClientTupleKey('user:w', 'viewer', 'doc:1')],
+                deletes: [new ClientTupleKeyWithoutCondition('user:d', 'viewer', 'doc:2')],
+            ),
+            null,
+            new WriteOptions(
+                transaction: new TransactionOptions(disable: true),
+                maxPerChunk: 10,
+            ),
+            ['X-Custom' => '1'],
+        );
+
+        self::assertCount(2, $mock->getRequests());
+        self::assertCount(2, $response->tupleResults);
+        self::assertTrue($response->tupleResults[0]->success);
+        self::assertTrue($response->tupleResults[1]->success);
+        self::assertSame('write', $response->tupleResults[0]->operation);
+        self::assertSame('delete', $response->tupleResults[1]->operation);
+        self::assertSame('1', $mock->getRequests()[0]->getHeaderLine('X-Custom'));
+        self::assertSame('1', $mock->getRequests()[1]->getHeaderLine('X-Custom'));
+    }
+
+    public function testNonTransactionalFailureChunkWithWritesAndDeletesRecordsAllFailures(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(
+                writes: [new ClientTupleKey('user:w', 'viewer', 'doc:1')],
+                deletes: [new ClientTupleKeyWithoutCondition('user:d', 'viewer', 'doc:2')],
+            ),
+            null,
+            new WriteOptions(
+                transaction: new TransactionOptions(disable: true),
+                maxPerChunk: 10,
+            ),
+            [],
+        );
+
+        self::assertCount(2, $mock->getRequests());
+        self::assertCount(2, $response->tupleResults);
+        self::assertFalse($response->tupleResults[0]->success);
+        self::assertFalse($response->tupleResults[1]->success);
     }
 
     public function testEmptyWriteRequestStillPerformsTransactionalCall(): void

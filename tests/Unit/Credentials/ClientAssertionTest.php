@@ -59,7 +59,11 @@ final class ClientAssertionTest extends TestCase
 
         self::assertSame('https://issuer.example/oauth/token', $assertion->tokenEndpoint());
         $debug = $assertion->__debugInfo();
+        self::assertSame('client-1', $debug['clientId']);
         self::assertSame('***', $debug['privateKeyPem']);
+        self::assertSame('issuer.example', $debug['apiTokenIssuer']);
+        self::assertSame('audience-1', $debug['apiAudience']);
+        self::assertSame('RS256', $debug['algorithm']);
         self::assertSame('kid-1', $debug['keyId']);
     }
 }

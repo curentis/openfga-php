@@ -326,11 +326,15 @@ final class OpenFgaClientTest extends MockTransportTestCase
             new RequestOptions(headers: ['X-Req' => 'yes']),
         );
         self::assertSame(200, $response->getStatusCode());
-        $query = $this->lastRequest($mock)->getUri()->getQuery();
+        $request = $this->lastRequest($mock);
+        self::assertStringNotContainsString('{', $request->getUri()->getPath());
+        self::assertStringContainsString(self::STORE_ID, $request->getUri()->getPath());
+        $query = $request->getUri()->getQuery();
         parse_str($query, $parsed);
         self::assertSame('5', $parsed['page_size'] ?? null);
         self::assertArrayNotHasKey('nullable', $parsed);
         self::assertArrayNotHasKey('bad', $parsed);
+        self::assertCount(1, $parsed);
 
         $lines = iterator_to_array($client->executeStreamedApiRequest(
             'GET',

@@ -91,6 +91,12 @@ final class ClientResponseAndOptionsTest extends TestCase
         self::assertSame(15, (new RetryOptions(maxRetry: 15))->maxRetry);
     }
 
+    public function testRetryOptionsRejectsMaxRetryAboveFifteen(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new RetryOptions(maxRetry: 16);
+    }
+
     public function testRetryOptionsAcceptsMinimumMinWait(): void
     {
         self::assertSame(1, (new RetryOptions(minWaitMs: 1))->minWaitMs);

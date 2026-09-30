@@ -43,6 +43,22 @@ final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
         self::assertInstanceOf(OpenFgaClient::class, $client);
     }
 
+    public function testCreateUsesDiscoveryForMissingHttpFactoriesWhenClientIsProvided(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
+
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+            ),
+        );
+
+        self::assertSame([], $client->listStores()->stores);
+        self::assertCount(1, $mock->getRequests());
+    }
+
     public function testCreateDelegatesToClientFactoryOnConfiguration(): void
     {
         $mock = new MockClient();
