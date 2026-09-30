@@ -9,6 +9,23 @@ use PHPUnit\Framework\TestCase;
 
 final class UuidTest extends TestCase
 {
+    public function testFormatV4BytesAppliesRfc4122VersionAndVariantBits(): void
+    {
+        $bytes = hex2bin('ffeeddccbbaa99887766555443322100');
+        self::assertIsString($bytes);
+
+        self::assertSame(
+            'ffeeddcc-bbaa-4988-b766-555443322100',
+            Uuid::formatV4Bytes($bytes),
+        );
+    }
+
+    public function testFormatV4BytesRejectsWrongLength(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Uuid::formatV4Bytes('short');
+    }
+
     public function testV4MatchesUuidFormat(): void
     {
         for ($i = 0; $i < 32; ++$i) {
@@ -21,8 +38,8 @@ final class UuidTest extends TestCase
             $bytes = hex2bin(str_replace('-', '', $uuid));
             self::assertIsString($bytes);
             self::assertSame(16, strlen($bytes));
-            self::assertSame(0x40, ord($bytes[6]) & 0xf0);
-            self::assertSame(0x80, ord($bytes[8]) & 0xc0);
+            self::assertSame(4, (ord($bytes[6]) >> 4) & 0x0f);
+            self::assertSame(2, (ord($bytes[8]) >> 6) & 0x03);
             self::assertSame('4', $uuid[14]);
             self::assertMatchesRegularExpression('/^[89ab]$/', $uuid[19]);
             self::assertSame(36, strlen($uuid));

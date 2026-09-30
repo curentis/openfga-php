@@ -6,6 +6,7 @@ namespace Curentis\OpenFga\Tests\Unit\Credentials;
 
 use Curentis\OpenFga\Credentials\ClientAssertion;
 use Curentis\OpenFga\Credentials\ClientAssertionJwt;
+use Curentis\OpenFga\Credentials\IssuerUrl;
 use Curentis\OpenFga\Tests\Support\RsaPrivateKeyFixture;
 use PHPUnit\Framework\TestCase;
 
@@ -31,8 +32,15 @@ final class ClientAssertionJwtTest extends TestCase
         self::assertSame('key-1', $header['kid']);
 
         $payload = $this->decodeJwtPart($parts[1]);
+        self::assertSame('client-1', $payload['iss']);
+        self::assertSame('client-1', $payload['sub']);
+        self::assertSame(IssuerUrl::audienceForJwt('issuer.example'), $payload['aud']);
+        self::assertSame('jti-123', $payload['jti']);
         self::assertSame($issuedAt, $payload['iat']);
         self::assertSame($issuedAt + 300, $payload['exp']);
+        foreach ($parts as $segment) {
+            self::assertDoesNotMatchRegularExpression('/=/', $segment);
+        }
     }
 
     public function testEmptyKeyIdIsOmittedFromHeader(): void
@@ -62,6 +70,15 @@ final class ClientAssertionJwtTest extends TestCase
         $jwt = ClientAssertionJwt::sign($credentials, 1_700_000_000, 'jti-456');
         $header = $this->decodeJwtPart(explode('.', $jwt)[0]);
         self::assertArrayNotHasKey('kid', $header);
+    }
+
+    public function testRequireNonEmptyBinaryStringRejectsEmptyValue(): void
+    {
+        $method = new \ReflectionMethod(ClientAssertionJwt::class, 'requireNonEmptyBinaryString');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('empty client assertion signature');
+        $method->invoke(null, '');
     }
 
     public function testInvalidPrivateKeyThrows(): void

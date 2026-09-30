@@ -36,6 +36,8 @@ final class ClientCredentialsTest extends TestCase
         $debug = $credentials->__debugInfo();
         self::assertSame('client-1', $debug['clientId']);
         self::assertSame('***', $debug['clientSecret']);
+        self::assertSame('issuer.example', $debug['apiTokenIssuer']);
+        self::assertSame('audience-1', $debug['apiAudience']);
         self::assertSame('read', $debug['scopes']);
     }
 }

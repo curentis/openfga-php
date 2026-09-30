@@ -35,18 +35,9 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
         if ($randomizer === null) {
             $randomizer = new Randomizer();
         }
-        $httpClient = $configuration->httpClient;
-        if ($httpClient === null) {
-            $httpClient = Psr18ClientDiscovery::find();
-        }
-        $requestFactory = $configuration->requestFactory;
-        if ($requestFactory === null) {
-            $requestFactory = Psr17FactoryDiscovery::findRequestFactory();
-        }
-        $streamFactory = $configuration->streamFactory;
-        if ($streamFactory === null) {
-            $streamFactory = Psr17FactoryDiscovery::findStreamFactory();
-        }
+        $httpClient = $configuration->httpClient ?? Psr18ClientDiscovery::find();
+        $requestFactory = $configuration->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
+        $streamFactory = $configuration->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
         $retryPolicy = new RetryPolicy(
             $configuration->retry->maxRetry,
