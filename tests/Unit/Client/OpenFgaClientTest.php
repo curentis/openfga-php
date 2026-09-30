@@ -340,6 +340,23 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $client->getStore();
     }
 
+    public function testRequireAuthorizationModelIdThrowsWhenOptionsProvideEmptyString(): void
+    {
+        $mock = new MockClient();
+        $config = new ClientConfiguration(
+            storeId: self::STORE_ID,
+            authorizationModelId: null,
+        );
+        $client = new \Curentis\OpenFga\Client\OpenFgaClient(
+            $config,
+            $this->openFgaApi($mock),
+            $this->transport($mock),
+        );
+
+        $this->expectException(FgaRequiredParamException::class);
+        $client->readAuthorizationModel(new RequestOptions(authorizationModelId: ''));
+    }
+
     public function testRequireAuthorizationModelIdThrowsWhenMissing(): void
     {
         $mock = new MockClient();

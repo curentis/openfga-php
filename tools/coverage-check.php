@@ -87,6 +87,21 @@ foreach ($expectedFiles as $relative) {
             $fileCovered,
             $fileTotal,
         ));
+        foreach ($fileNodes as $fileNode) {
+            $name = (string) ($fileNode['name'] ?? '');
+            $nodeRelative = str_starts_with($name, $projectRoot)
+                ? substr($name, strlen($projectRoot) + 1)
+                : $name;
+            if ($nodeRelative !== $relative) {
+                continue;
+            }
+            foreach ($fileNode->line as $lineNode) {
+                $count = (int) ($lineNode['count'] ?? 0);
+                if ($count === 0 && (string) ($lineNode['type'] ?? '') === 'stmt') {
+                    fwrite(STDERR, sprintf("  uncovered line %s\n", (string) ($lineNode['num'] ?? '?')));
+                }
+            }
+        }
         $failed = true;
     }
 }
