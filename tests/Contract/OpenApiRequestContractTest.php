@@ -13,6 +13,13 @@ use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckItem;
 use Curentis\OpenFga\Model\CheckRequestTupleKey;
 use Curentis\OpenFga\Model\ConsistencyPreference;
+use Curentis\OpenFga\Model\ExpandBody;
+use Curentis\OpenFga\Model\ExpandRequestTupleKey;
+use Curentis\OpenFga\Model\FgaObject;
+use Curentis\OpenFga\Model\ListObjectsBody;
+use Curentis\OpenFga\Model\ListUsersBody;
+use Curentis\OpenFga\Model\ReadBody;
+use Curentis\OpenFga\Model\UserTypeFilter;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use League\OpenAPIValidation\PSR7\RequestValidator;
@@ -38,9 +45,10 @@ final class OpenApiRequestContractTest extends MockTransportTestCase
         string $method,
         \Closure $invoke,
         string $expectedPathSuffix,
+        string $responseBody = '{"allowed":true,"result":{}}',
     ): void {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], '{"allowed":true,"result":{}}'));
+        $mock->addResponse(new Response(200, [], $responseBody));
 
         $api = $this->openFgaApi($mock);
         $storeId = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
@@ -60,7 +68,7 @@ final class OpenApiRequestContractTest extends MockTransportTestCase
     }
 
     /**
-     * @return iterable<string, array{0: string, 1: \Closure(OpenFgaApi, string): void, 2: string}>
+     * @return iterable<string, array{0: string, 1: \Closure(OpenFgaApi, string): void, 2: string, 3?: string}>
      */
     public static function endpointProvider(): iterable
     {
@@ -114,6 +122,86 @@ final class OpenApiRequestContractTest extends MockTransportTestCase
                 $api->write($storeId, $body);
             },
             '/write',
+        ];
+
+        yield 'read' => [
+            'POST',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->read($storeId, new ReadBody(pageSize: 10));
+            },
+            '/read',
+            '{"continuation_token":"","tuples":[]}',
+        ];
+
+        yield 'expand' => [
+            'POST',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->expand($storeId, new ExpandBody(
+                    tupleKey: new ExpandRequestTupleKey(object: 'document:1', relation: 'viewer'),
+                    authorizationModelId: '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+                ));
+            },
+            '/expand',
+            '{}',
+        ];
+
+        yield 'list-objects' => [
+            'POST',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->listObjects($storeId, new ListObjectsBody(
+                    relation: 'viewer',
+                    type: 'document',
+                    user: 'user:anne',
+                    authorizationModelId: '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+                ));
+            },
+            '/list-objects',
+            '{"objects":[]}',
+        ];
+
+        yield 'list-users' => [
+            'POST',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->listUsers($storeId, new ListUsersBody(
+                    object: new FgaObject(id: '1', type: 'document'),
+                    relation: 'viewer',
+                    userFilters: [new UserTypeFilter(type: 'user')],
+                    authorizationModelId: '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+                ));
+            },
+            '/list-users',
+            '{"users":[]}',
+        ];
+
+        yield 'read-changes' => [
+            'GET',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->readChanges($storeId, type: 'document', pageSize: 25);
+            },
+            '/changes',
+            '{"changes":[],"continuation_token":""}',
+        ];
+
+        yield 'authorization-models-list' => [
+            'GET',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->readAuthorizationModels($storeId, pageSize: 1);
+            },
+            '/authorization-models',
+            '{"authorization_models":[],"continuation_token":""}',
+        ];
+
+        yield 'streamed-list-objects' => [
+            'POST',
+            static function (OpenFgaApi $api, string $storeId): void {
+                $api->streamedListObjects($storeId, new ListObjectsBody(
+                    relation: 'viewer',
+                    type: 'document',
+                    user: 'user:anne',
+                ));
+            },
+            '/streamed-list-objects',
+            '',
         ];
     }
 }
