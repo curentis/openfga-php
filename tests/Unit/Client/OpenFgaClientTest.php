@@ -135,6 +135,16 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertTrue($batch->results[0]->allowed);
     }
 
+    public function testExpandWithoutConsistencyPassesBodyThrough(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $client = $this->openFgaClient($mock);
+
+        $client->expand(new ExpandBody(tupleKey: new ExpandRequestTupleKey(object: 'doc:1', relation: 'viewer')));
+        self::assertStringNotContainsString('consistency', (string) $this->lastRequest($mock)->getBody());
+    }
+
     public function testExpandListObjectsListUsersWithConsistency(): void
     {
         $mock = new MockClient();

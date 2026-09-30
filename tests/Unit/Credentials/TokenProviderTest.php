@@ -73,6 +73,34 @@ final class TokenProviderTest extends TestCase
         self::assertStringNotContainsString('scope=', $body);
     }
 
+    public function testOmitsScopeWhenConfiguredAsEmptyString(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"plain","expires_in":3600}'));
+        $provider = $this->provider($mock, new ClientCredentials(
+            'client',
+            'secret',
+            'issuer.example',
+            'audience',
+            scopes: '',
+        ));
+
+        $provider->getAccessToken();
+        $body = urldecode((string) $this->lastTokenRequest($mock)->getBody());
+        self::assertStringNotContainsString('scope=', $body);
+    }
+
+    public function testPersistsFetchedTokenInPsrCache(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-new","expires_in":3600}'));
+        $cache = new SimpleArrayCache();
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+
+        self::assertSame('cached-new', $provider->getAccessToken());
+        self::assertIsString($cache->get('openfga_token_' . hash('sha256', 'https://issuer.example|client|audience')));
+    }
+
     public function testIncludesScopeForClientCredentials(): void
     {
         $mock = new MockClient();

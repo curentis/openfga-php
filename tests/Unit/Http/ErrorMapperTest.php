@@ -56,6 +56,15 @@ final class ErrorMapperTest extends TestCase
         self::assertSame('abc', $exception->storeId);
     }
 
+    public function testUsesRawBodyWhenJsonMessageFieldIsMissing(): void
+    {
+        $response = new Response(500, [], '{"code":"internal"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame('internal', $exception->apiErrorCode);
+        self::assertSame('{"code":"internal"}', $exception->apiErrorMessage);
+    }
+
     public function testParsesApiErrorCodeAndMessageFromJsonBody(): void
     {
         $response = new Response(400, [], '{"code":"validation_error","message":"tuple key is invalid"}');

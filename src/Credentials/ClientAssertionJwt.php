@@ -52,7 +52,9 @@ final class ClientAssertionJwt
     {
         $signature = '';
         if (!openssl_sign($signingInput, $signature, $key, OPENSSL_ALGO_SHA256)) {
+            // @codeCoverageIgnoreStart
             throw new \RuntimeException('Failed to sign client assertion JWT.');
+            // @codeCoverageIgnoreEnd
         }
 
         return self::requireNonEmptyBinaryString($signature);
@@ -61,7 +63,9 @@ final class ClientAssertionJwt
     private static function requireNonEmptyBinaryString(mixed $value): string
     {
         if (!is_string($value) || $value === '') {
+            // @codeCoverageIgnoreStart
             throw new \RuntimeException('OpenSSL returned an empty client assertion signature.');
+            // @codeCoverageIgnoreEnd
         }
 
         return $value;
