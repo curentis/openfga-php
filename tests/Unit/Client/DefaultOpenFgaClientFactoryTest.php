@@ -57,11 +57,36 @@ final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
                 apiUrl: 'http://localhost:8080',
                 httpClient: $mock,
                 requestFactory: new MarkingRequestFactory(),
+                streamFactory: new Psr17Factory(),
             ),
         );
 
         $client->listStores();
         self::assertSame('custom', $mock->getRequests()[0]->getHeaderLine('X-Request-Factory'));
+    }
+
+    public function testCreateUsesExplicitStreamFactoryWhenOnlyStreamFactoryProvided(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{}'));
+
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(
+                storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                requestFactory: new Psr17Factory(),
+                streamFactory: new MarkingStreamFactory(),
+            ),
+        );
+
+        $client->write(
+            new \Curentis\OpenFga\Client\Request\ClientWriteRequest(
+                writes: [new \Curentis\OpenFga\Client\Request\ClientTupleKey('user:a', 'viewer', 'doc:1')],
+            ),
+        );
+
+        self::assertStringStartsWith('MARKER:', (string) $mock->getRequests()[0]->getBody());
     }
 
     public function testCreateUsesExplicitStreamFactoryWhenProvided(): void

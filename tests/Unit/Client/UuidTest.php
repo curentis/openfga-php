@@ -14,10 +14,16 @@ final class UuidTest extends TestCase
         $bytes = hex2bin('ffeeddccbbaa99887766555443322100');
         self::assertIsString($bytes);
 
+        $formatted = Uuid::formatV4Bytes($bytes);
         self::assertSame(
             'ffeeddcc-bbaa-4988-b766-555443322100',
-            Uuid::formatV4Bytes($bytes),
+            $formatted,
         );
+
+        $outBytes = hex2bin(str_replace('-', '', $formatted));
+        self::assertIsString($outBytes);
+        self::assertSame(0x49, ord($outBytes[6]));
+        self::assertSame(0xb7, ord($outBytes[8]));
     }
 
     public function testFormatV4BytesRejectsWrongLength(): void

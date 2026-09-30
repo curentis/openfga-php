@@ -179,6 +179,20 @@ final class TokenProviderTest extends TestCase
         self::assertSame('num', $provider->getAccessToken());
     }
 
+    public function testTokenExpiryAppliesRefreshBufferAndJitter(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"timed","expires_in":3600}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        self::assertSame('timed', $provider->getAccessToken());
+
+        $memory = new \ReflectionProperty(TokenProvider::class, 'memoryToken');
+        $token = $memory->getValue($provider);
+        self::assertInstanceOf(AccessToken::class, $token);
+        self::assertSame(self::NOW + 3600 - 300 - 59, $token->expiresAtEpoch);
+    }
+
     public function testNonNumericExpiresInTriggersInvalidTokenResponse(): void
     {
         $mock = new MockClient();

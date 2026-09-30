@@ -15,6 +15,10 @@ final class IssuerUrlTest extends TestCase
         self::assertSame('https://issuer.example', IssuerUrl::normalize('https://issuer.example'));
         self::assertSame('http://issuer.example', IssuerUrl::normalize('http://issuer.example/'));
         self::assertSame('HTTP://UPPER.example', IssuerUrl::normalize('HTTP://UPPER.example'));
+        self::assertSame(
+            'https://foo.com/http://bar.com',
+            IssuerUrl::normalize('foo.com/http://bar.com'),
+        );
     }
 
     public function testNormalizeRejectsEmptyIssuer(): void
