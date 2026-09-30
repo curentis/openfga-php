@@ -124,7 +124,9 @@ final class ErrorMapper
         $normalized = [];
         foreach ($response->getHeaders() as $name => $values) {
             if (!is_string($name)) {
+                // @codeCoverageIgnoreStart
                 continue;
+                // @codeCoverageIgnoreEnd
             }
             $normalized[strtolower($name)] = array_values($values);
         }

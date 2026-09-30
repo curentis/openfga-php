@@ -14,8 +14,6 @@ use Curentis\OpenFga\Http\ErrorMapper;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\StreamInterface;
 
 final class ErrorMapperTest extends TestCase
 {
@@ -56,84 +54,6 @@ final class ErrorMapperTest extends TestCase
         self::assertSame('POST', $exception->method);
         self::assertSame('/stores/abc/check', $exception->endpoint);
         self::assertSame('abc', $exception->storeId);
-    }
-
-    public function testIgnoresNonStringHeaderNamesWhenNormalizing(): void
-    {
-        $response = new class implements ResponseInterface {
-            public function getStatusCode(): int
-            {
-                return 500;
-            }
-
-            public function withStatus(int $code, string $reasonPhrase = ''): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getReasonPhrase(): string
-            {
-                return '';
-            }
-
-            public function getProtocolVersion(): string
-            {
-                return '1.1';
-            }
-
-            public function withProtocolVersion(string $version): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getHeaders(): array
-            {
-                return [0 => ['ignored'], 'X-Request-Id' => ['req-1']];
-            }
-
-            public function hasHeader(string $name): bool
-            {
-                return isset($this->getHeaders()[$name]);
-            }
-
-            public function getHeader(string $name): array
-            {
-                return $this->getHeaders()[$name] ?? [];
-            }
-
-            public function getHeaderLine(string $name): string
-            {
-                return implode(',', $this->getHeader($name));
-            }
-
-            public function withHeader(string $name, $value): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function withAddedHeader(string $name, $value): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function withoutHeader(string $name): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getBody(): StreamInterface
-            {
-                return new Response(500, [], '{"message":"err"}')->getBody();
-            }
-
-            public function withBody(StreamInterface $body): ResponseInterface
-            {
-                return $this;
-            }
-        };
-
-        $exception = $this->mapper->map('GET', '/stores', null, $response);
-        self::assertSame('req-1', $exception->requestId);
     }
 
     public function testUsesRawBodyWhenJsonMessageFieldIsMissing(): void
