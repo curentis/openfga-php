@@ -8,10 +8,9 @@ use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\OpenFgaClientFactory;
 use Curentis\OpenFga\Client\Options\ConflictOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
+use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
-use Curentis\OpenFga\Model\ReadBody;
-use Curentis\OpenFga\Model\ReadRequestTupleKey;
 use Curentis\OpenFga\Model\WriteAuthorizationModelBody;
 use Curentis\OpenFga\Tests\Support\RequiresOpenFgaServerTrait;
 use PHPUnit\Framework\TestCase;
@@ -57,27 +56,21 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
                 new WriteOptions(conflict: new ConflictOptions(onDuplicateWrites: 'ignore')),
             );
 
-            $read = $fga->read(new ReadBody(
-                tupleKey: new ReadRequestTupleKey(
-                    user: 'user:anne',
-                    relation: 'viewer',
-                    object: 'document:plan',
-                ),
-            ));
-            self::assertCount(1, $read->tuples);
+            self::assertTrue($fga->check(new ClientCheckRequest(
+                'user:anne',
+                'viewer',
+                'document:plan',
+            ))->allowed);
 
             $fga->deleteTuples([
                 new ClientTupleKeyWithoutCondition('user:anne', 'viewer', 'document:plan'),
             ], new WriteOptions(conflict: new ConflictOptions(onMissingDeletes: 'ignore')));
 
-            $readAfterDelete = $fga->read(new ReadBody(
-                tupleKey: new ReadRequestTupleKey(
-                    user: 'user:anne',
-                    relation: 'viewer',
-                    object: 'document:plan',
-                ),
-            ));
-            self::assertSame([], $readAfterDelete->tuples);
+            self::assertFalse($fga->check(new ClientCheckRequest(
+                'user:anne',
+                'viewer',
+                'document:plan',
+            ))->allowed);
         } finally {
             $fga->deleteStore();
         }
