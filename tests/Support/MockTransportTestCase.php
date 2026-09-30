@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Tests\Support;
 
 use Curentis\OpenFga\Api\OpenFgaApi;
+use Curentis\OpenFga\Client\ClientConfiguration;
+use Curentis\OpenFga\Client\OpenFgaClient;
 use Curentis\OpenFga\Credentials\NoCredentials;
 use Curentis\OpenFga\Http\AuthorizationHeaderProvider;
 use Curentis\OpenFga\Http\RetryPolicy;
@@ -20,6 +22,20 @@ abstract class MockTransportTestCase extends TestCase
     protected function openFgaApi(MockClient $mock): OpenFgaApi
     {
         return new OpenFgaApi($this->transport($mock));
+    }
+
+    protected function openFgaClient(
+        MockClient $mock,
+        string $storeId = '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ?string $authorizationModelId = '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+    ): OpenFgaClient {
+        $transport = $this->transport($mock);
+        $configuration = new ClientConfiguration(
+            storeId: $storeId,
+            authorizationModelId: $authorizationModelId,
+        );
+
+        return new OpenFgaClient($configuration, new OpenFgaApi($transport), $transport);
     }
 
     protected function transport(MockClient $mock): Transport
