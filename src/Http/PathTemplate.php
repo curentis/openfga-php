@@ -31,7 +31,10 @@ final class PathTemplate
         }
 
         if (preg_match('/\{[^}]+\}/', $template) === 1) {
+            // Defensive: should not happen when placeholders and params stay in sync.
+            // @codeCoverageIgnoreStart
             throw new FgaValidationException(sprintf('Unknown path placeholders remain in "%s".', $template));
+            // @codeCoverageIgnoreEnd
         }
 
         return $template;

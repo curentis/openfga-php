@@ -212,7 +212,48 @@ final class ClassRenderer
     private function renderTypeCheck(string $jsonName, string $phpName, array $mapped, string $pathExpr, bool $isRequired): array
     {
         $valueExpr = $isRequired ? sprintf('$data[\'%s\']', addslashes($jsonName)) : sprintf('$%s', $phpName);
+        $checks = $this->renderTypeCheckBody($jsonName, $phpName, $mapped, $pathExpr, $isRequired, $valueExpr);
 
+        if (!$mapped['nullable']) {
+            return $checks;
+        }
+
+        $wrapped = [
+            sprintf('if (%s === null) {', $valueExpr),
+            sprintf('    $%s = null;', $phpName),
+            '} else {',
+        ];
+        foreach ($checks as $check) {
+            $wrapped[] = '    ' . $check;
+        }
+        $wrapped[] = '}';
+
+        return $wrapped;
+    }
+
+    /**
+     * @param array{
+     *     phpType: string,
+     *     nullable: bool,
+     *     enumSchema: ?string,
+     *     modelSchema: ?string,
+     *     isList: bool,
+     *     isEmptyObject: bool,
+     *     isFreeFormObject: bool,
+     *     isDateTime: bool,
+     *     imports: list<string>
+     * } $mapped
+     *
+     * @return list<string>
+     */
+    private function renderTypeCheckBody(
+        string $jsonName,
+        string $phpName,
+        array $mapped,
+        string $pathExpr,
+        bool $isRequired,
+        string $valueExpr,
+    ): array {
         if ($mapped['isDateTime']) {
             return [
                 sprintf('if (!is_string(%s)) { throw new FgaValidationException(sprintf(\'%s: expected date-time string\', %s)); }', $valueExpr, '%s', $pathExpr),
@@ -357,6 +398,10 @@ final class ClassRenderer
             return sprintf('\'%s\' => $this->%s->format(\\DateTimeInterface::ATOM)', addslashes($jsonName), $phpName);
         }
         if ($mapped['enumSchema'] !== null) {
+            if ($mapped['nullable']) {
+                return sprintf('\'%s\' => $this->%s?->value', addslashes($jsonName), $phpName);
+            }
+
             return sprintf('\'%s\' => $this->%s->value', addslashes($jsonName), $phpName);
         }
         if ($mapped['isList'] && $mapped['modelSchema'] !== null) {

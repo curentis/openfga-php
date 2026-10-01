@@ -32,17 +32,21 @@ final readonly class ConditionParamTypeRef implements \JsonSerializable
         $genericTypes = null;
         if (array_key_exists('generic_types', $data)) {
             $genericTypes = $data['generic_types'];
-            if (!is_array($genericTypes)) {
-                throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'generic_types'));
-            }
-            $genericTypesList = [];
-            foreach ($genericTypes as $idx => $item) {
-                if (!is_array($item)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+            if ($genericTypes === null) {
+                $genericTypes = null;
+            } else {
+                if (!is_array($genericTypes)) {
+                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'generic_types'));
                 }
-                $genericTypesList[] = ConditionParamTypeRef::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                $genericTypesList = [];
+                foreach ($genericTypes as $idx => $item) {
+                    if (!is_array($item)) {
+                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                    }
+                    $genericTypesList[] = ConditionParamTypeRef::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                }
+                $genericTypes = $genericTypesList;
             }
-            $genericTypes = $genericTypesList;
         }
         return new self(typeName: $typeName, genericTypes: $genericTypes);
     }

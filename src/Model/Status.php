@@ -22,30 +22,42 @@ final readonly class Status implements \JsonSerializable
         $code = null;
         if (array_key_exists('code', $data)) {
             $code = $data['code'];
-            if (!is_integer($code)) {
-                throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'code'));
+            if ($code === null) {
+                $code = null;
+            } else {
+                if (!is_integer($code)) {
+                    throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'code'));
+                }
             }
         }
         $details = null;
         if (array_key_exists('details', $data)) {
             $details = $data['details'];
-            if (!is_array($details)) {
-                throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'details'));
-            }
-            $detailsList = [];
-            foreach ($details as $idx => $item) {
-                if (!is_array($item)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+            if ($details === null) {
+                $details = null;
+            } else {
+                if (!is_array($details)) {
+                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'details'));
                 }
-                $detailsList[] = Any::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                $detailsList = [];
+                foreach ($details as $idx => $item) {
+                    if (!is_array($item)) {
+                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                    }
+                    $detailsList[] = Any::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                }
+                $details = $detailsList;
             }
-            $details = $detailsList;
         }
         $message = null;
         if (array_key_exists('message', $data)) {
             $message = $data['message'];
-            if (!is_string($message)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+            if ($message === null) {
+                $message = null;
+            } else {
+                if (!is_string($message)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                }
             }
         }
         return new self(code: $code, details: $details, message: $message);

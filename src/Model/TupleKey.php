@@ -43,10 +43,14 @@ final readonly class TupleKey implements \JsonSerializable
         $condition = null;
         if (array_key_exists('condition', $data)) {
             $condition = $data['condition'];
-            if (!is_array($condition)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'condition'));
+            if ($condition === null) {
+                $condition = null;
+            } else {
+                if (!is_array($condition)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'condition'));
+                }
+                $condition = RelationshipCondition::fromArray($condition, ($path === '' ? '' : $path . '.') . 'condition');
             }
-            $condition = RelationshipCondition::fromArray($condition, ($path === '' ? '' : $path . '.') . 'condition');
         }
         return new self(object: $object, relation: $relation, user: $user, condition: $condition);
     }

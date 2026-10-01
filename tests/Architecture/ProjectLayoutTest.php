@@ -11,6 +11,6 @@ final class ProjectLayoutTest extends TestCase
 {
     public function testVersionClassIsLoadable(): void
     {
-        self::assertStringStartsWith('0.', Version::VERSION);
+        self::assertMatchesRegularExpression('/^\d+\.\d+\.\d+/', Version::VERSION);
     }
 }

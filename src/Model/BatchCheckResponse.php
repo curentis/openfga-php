@@ -20,8 +20,12 @@ final readonly class BatchCheckResponse implements \JsonSerializable
         $result = null;
         if (array_key_exists('result', $data)) {
             $result = $data['result'];
-            if (!is_array($result)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'result'));
+            if ($result === null) {
+                $result = null;
+            } else {
+                if (!is_array($result)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'result'));
+                }
             }
         }
         return new self(result: $result);

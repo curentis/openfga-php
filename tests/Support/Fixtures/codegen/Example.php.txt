@@ -25,7 +25,11 @@ final readonly class Example implements \JsonSerializable
             $name = null;
             if (array_key_exists('name', $data)) {
                 $name = $data['name'];
+                if ($name === null) {
+                $name = null;
+            } else {
                 if (!is_string($name)) { throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name')); }
+            }
             }
             return new self(id: $id, name: $name);
     }

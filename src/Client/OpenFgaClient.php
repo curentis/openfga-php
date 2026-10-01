@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Client;
 
-use Curentis\OpenFga\Api\OpenFgaApi;
+use Curentis\OpenFga\Api\OpenFgaApiInterface;
+use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\RequestOptions;
+use Curentis\OpenFga\Client\Options\WriteOptions;
+use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
+use Curentis\OpenFga\Client\Request\ClientListRelationsRequest;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
+use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Exception\FgaRequiredParamException;
 use Curentis\OpenFga\Http\NdjsonStream;
 use Curentis\OpenFga\Http\PathTemplate;
-use Curentis\OpenFga\Http\Transport;
-use Curentis\OpenFga\Model\BatchCheckBody;
-use Curentis\OpenFga\Model\BatchCheckResponse;
+use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\CheckResponse;
 use Curentis\OpenFga\Model\ConsistencyPreference;
 use Curentis\OpenFga\Model\CreateStoreRequest;
@@ -43,20 +47,37 @@ final class OpenFgaClient implements OpenFgaClientInterface
 {
     public function __construct(
         private readonly ClientConfiguration $configuration,
-        private readonly OpenFgaApi $api,
-        private readonly Transport $transport,
+        private readonly OpenFgaApiInterface $api,
+        private readonly TransportInterface $transport,
+        private readonly WriteRunnerInterface $writeRunner,
+        private readonly BatchCheckRunnerInterface $batchCheckRunner,
+        private readonly ConsistencyBodyFactoryInterface $consistencyBodyFactory,
     ) {}
 
     #[\Override]
-    public function withStoreId(string $storeId): self
+    public function withStoreId(string $storeId): OpenFgaClientInterface
     {
-        return new self($this->configuration->withStoreId($storeId), $this->api, $this->transport);
+        return new self(
+            $this->configuration->withStoreId($storeId),
+            $this->api,
+            $this->transport,
+            $this->writeRunner,
+            $this->batchCheckRunner,
+            $this->consistencyBodyFactory,
+        );
     }
 
     #[\Override]
-    public function withAuthorizationModelId(string $authorizationModelId): self
+    public function withAuthorizationModelId(string $authorizationModelId): OpenFgaClientInterface
     {
-        return new self($this->configuration->withAuthorizationModelId($authorizationModelId), $this->api, $this->transport);
+        return new self(
+            $this->configuration->withAuthorizationModelId($authorizationModelId),
+            $this->api,
+            $this->transport,
+            $this->writeRunner,
+            $this->batchCheckRunner,
+            $this->consistencyBodyFactory,
+        );
     }
 
     #[\Override]
@@ -133,7 +154,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function read(?ReadBody $request = null, ?PaginationOptions $page = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ReadResponse
     {
-        $body = $request ?? new ReadBody();
+        $body = $this->resolveReadBody($request);
         $consistencyValue = $consistency !== null ? $consistency->value : $body->consistency;
         $pageSize = $page !== null ? $page->pageSize : $body->pageSize;
         $continuationToken = $page !== null ? $page->continuationToken : $body->continuationToken;
@@ -148,24 +169,27 @@ final class OpenFgaClient implements OpenFgaClientInterface
     }
 
     #[\Override]
-    public function write(ClientWriteRequest $request, ?RequestOptions $options = null): ClientWriteResponse
+    public function write(ClientWriteRequest $request, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        $body = ClientRequestMapper::toWriteBody($request, $this->authorizationModelId($options));
-        $response = $this->api->write($this->requireStoreId($options), $body, $this->headers($options));
-
-        return new ClientWriteResponse($response);
+        return $this->writeRunner->run(
+            $this->requireStoreId($options),
+            $request,
+            $this->authorizationModelId($options),
+            $this->resolveWriteOptions($write),
+            $this->headers($options),
+        );
     }
 
     #[\Override]
-    public function writeTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse
+    public function writeTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        return $this->write(new ClientWriteRequest(writes: $tuples), $options);
+        return $this->write(new ClientWriteRequest(writes: $tuples), $write, $options);
     }
 
     #[\Override]
-    public function deleteTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse
+    public function deleteTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse
     {
-        return $this->write(new ClientWriteRequest(deletes: $tuples), $options);
+        return $this->write(new ClientWriteRequest(deletes: $tuples), $write, $options);
     }
 
     #[\Override]
@@ -194,26 +218,51 @@ final class OpenFgaClient implements OpenFgaClientInterface
     }
 
     #[\Override]
-    public function batchCheck(array $checks, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): BatchCheckResponse
+    public function batchCheck(array $checks, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientBatchCheckResponse
     {
-        $body = new BatchCheckBody(
-            checks: $checks,
-            authorizationModelId: $this->authorizationModelId($options),
-            consistency: $consistency,
+        return $this->batchCheckRunner->run(
+            $this->requireStoreId($options),
+            $checks,
+            $this->resolveBatchCheckOptions($batch),
+            $this->authorizationModelId($options),
+            $consistency,
+            $this->headers($options),
         );
+    }
 
-        return $this->api->batchCheck($this->requireStoreId($options), $body, $this->headers($options));
+    #[\Override]
+    public function listRelations(ClientListRelationsRequest $request, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientListRelationsResponse
+    {
+        $checks = [];
+        foreach ($request->relations as $relation) {
+            $checks[] = new ClientBatchCheckItem(
+                user: $request->user,
+                relation: $relation,
+                object: $request->object,
+                correlationId: $relation,
+            );
+        }
+
+        $batchResponse = $this->batchCheck($checks, $batch, $consistency, $options);
+        $allowed = [];
+        foreach ($request->relations as $index => $relation) {
+            $result = $batchResponse->results[$index] ?? null;
+            if ($result !== null && $result->allowed === true) {
+                $allowed[] = $relation;
+            }
+        }
+
+        return new ClientListRelationsResponse($allowed);
     }
 
     #[\Override]
     public function expand(ExpandBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ExpandResponse
     {
         if ($consistency !== null) {
-            $body = new ExpandBody(
-                tupleKey: $body->tupleKey,
-                authorizationModelId: $body->authorizationModelId ?? $this->authorizationModelId($options),
-                consistency: $consistency->value,
-                contextualTuples: $body->contextualTuples,
+            $body = $this->consistencyBodyFactory->expand(
+                $body,
+                $consistency,
+                $this->authorizationModelId($options),
             );
         }
 
@@ -224,14 +273,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     public function listObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListObjectsResponse
     {
         if ($consistency !== null) {
-            $body = new ListObjectsBody(
-                user: $body->user,
-                relation: $body->relation,
-                type: $body->type,
-                contextualTuples: $body->contextualTuples,
-                context: $body->context,
-                consistency: $consistency->value,
-            );
+            $body = $this->consistencyBodyFactory->listObjects($body, $consistency);
         }
 
         return $this->api->listObjects($this->requireStoreId($options), $body, $this->headers($options));
@@ -244,14 +286,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     public function streamedListObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): \Generator
     {
         if ($consistency !== null) {
-            $body = new ListObjectsBody(
-                user: $body->user,
-                relation: $body->relation,
-                type: $body->type,
-                contextualTuples: $body->contextualTuples,
-                context: $body->context,
-                consistency: $consistency->value,
-            );
+            $body = $this->consistencyBodyFactory->listObjects($body, $consistency);
         }
 
         $response = $this->api->streamedListObjects($this->requireStoreId($options), $body, $this->headers($options));
@@ -268,14 +303,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     public function listUsers(ListUsersBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListUsersResponse
     {
         if ($consistency !== null) {
-            $body = new ListUsersBody(
-                object: $body->object,
-                relation: $body->relation,
-                userFilters: $body->userFilters,
-                contextualTuples: $body->contextualTuples,
-                context: $body->context,
-                consistency: $consistency->value,
-            );
+            $body = $this->consistencyBodyFactory->listUsers($body, $consistency);
         }
 
         return $this->api->listUsers($this->requireStoreId($options), $body, $this->headers($options));
@@ -317,12 +345,12 @@ final class OpenFgaClient implements OpenFgaClientInterface
     ): ResponseInterface {
         $normalizedPathParams = $this->normalizeScalarParams($pathParams);
         $normalizedQuery = $this->normalizeScalarParams($query);
-        PathTemplate::expand($path, $normalizedPathParams);
+        $expandedPath = PathTemplate::expand($path, $normalizedPathParams);
 
         return $this->transport->send(
             $method,
-            $path,
-            $normalizedPathParams,
+            $expandedPath,
+            [],
             $normalizedQuery,
             $body,
             $this->headers($options),
@@ -390,7 +418,40 @@ final class OpenFgaClient implements OpenFgaClientInterface
      */
     private function headers(?RequestOptions $options): array
     {
-        return $options !== null ? $options->headers : [];
+        if ($options === null) {
+            // @codeCoverageIgnoreStart
+            return [];
+            // @codeCoverageIgnoreEnd
+        }
+
+        return $options->headers;
+    }
+
+    private function resolveReadBody(?ReadBody $request): ReadBody
+    {
+        if ($request === null) {
+            return new ReadBody();
+        }
+
+        return $request;
+    }
+
+    private function resolveWriteOptions(?WriteOptions $write): WriteOptions
+    {
+        if ($write === null) {
+            return new WriteOptions();
+        }
+
+        return $write;
+    }
+
+    private function resolveBatchCheckOptions(?BatchCheckOptions $batch): BatchCheckOptions
+    {
+        if ($batch === null) {
+            return new BatchCheckOptions();
+        }
+
+        return $batch;
     }
 
     /**
@@ -405,7 +466,9 @@ final class OpenFgaClient implements OpenFgaClientInterface
         $normalized = [];
         foreach ($params as $key => $value) {
             if (!is_string($key)) {
+                // @codeCoverageIgnoreStart
                 continue;
+                // @codeCoverageIgnoreEnd
             }
             if (is_scalar($value) || $value === null) {
                 $normalized[$key] = $value;

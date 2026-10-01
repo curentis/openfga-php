@@ -30,34 +30,50 @@ final readonly class Node implements \JsonSerializable
         $difference = null;
         if (array_key_exists('difference', $data)) {
             $difference = $data['difference'];
-            if (!is_array($difference)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+            if ($difference === null) {
+                $difference = null;
+            } else {
+                if (!is_array($difference)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+                }
+                $difference = UsersetTreeDifference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
             }
-            $difference = UsersetTreeDifference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
         }
         $intersection = null;
         if (array_key_exists('intersection', $data)) {
             $intersection = $data['intersection'];
-            if (!is_array($intersection)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+            if ($intersection === null) {
+                $intersection = null;
+            } else {
+                if (!is_array($intersection)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+                }
+                $intersection = Nodes::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
             }
-            $intersection = Nodes::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
         }
         $leaf = null;
         if (array_key_exists('leaf', $data)) {
             $leaf = $data['leaf'];
-            if (!is_array($leaf)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'leaf'));
+            if ($leaf === null) {
+                $leaf = null;
+            } else {
+                if (!is_array($leaf)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'leaf'));
+                }
+                $leaf = Leaf::fromArray($leaf, ($path === '' ? '' : $path . '.') . 'leaf');
             }
-            $leaf = Leaf::fromArray($leaf, ($path === '' ? '' : $path . '.') . 'leaf');
         }
         $union = null;
         if (array_key_exists('union', $data)) {
             $union = $data['union'];
-            if (!is_array($union)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+            if ($union === null) {
+                $union = null;
+            } else {
+                if (!is_array($union)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+                }
+                $union = Nodes::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
             }
-            $union = Nodes::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
         }
         return new self(name: $name, difference: $difference, intersection: $intersection, leaf: $leaf, union: $union);
     }

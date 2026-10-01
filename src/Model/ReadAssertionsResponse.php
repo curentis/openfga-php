@@ -28,17 +28,21 @@ final readonly class ReadAssertionsResponse implements \JsonSerializable
         $assertions = null;
         if (array_key_exists('assertions', $data)) {
             $assertions = $data['assertions'];
-            if (!is_array($assertions)) {
-                throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
-            }
-            $assertionsList = [];
-            foreach ($assertions as $idx => $item) {
-                if (!is_array($item)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+            if ($assertions === null) {
+                $assertions = null;
+            } else {
+                if (!is_array($assertions)) {
+                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
                 }
-                $assertionsList[] = Assertion::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                $assertionsList = [];
+                foreach ($assertions as $idx => $item) {
+                    if (!is_array($item)) {
+                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                    }
+                    $assertionsList[] = Assertion::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                }
+                $assertions = $assertionsList;
             }
-            $assertions = $assertionsList;
         }
         return new self(authorizationModelId: $authorizationModelId, assertions: $assertions);
     }

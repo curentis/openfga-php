@@ -30,22 +30,34 @@ final readonly class RelationReference implements \JsonSerializable
         $condition = null;
         if (array_key_exists('condition', $data)) {
             $condition = $data['condition'];
-            if (!is_string($condition)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'condition'));
+            if ($condition === null) {
+                $condition = null;
+            } else {
+                if (!is_string($condition)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'condition'));
+                }
             }
         }
         $relation = null;
         if (array_key_exists('relation', $data)) {
             $relation = $data['relation'];
-            if (!is_string($relation)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            if ($relation === null) {
+                $relation = null;
+            } else {
+                if (!is_string($relation)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+                }
             }
         }
         $wildcard = null;
         if (array_key_exists('wildcard', $data)) {
             $wildcard = $data['wildcard'];
-            if (!is_array($wildcard)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
+            if ($wildcard === null) {
+                $wildcard = null;
+            } else {
+                if (!is_array($wildcard)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
+                }
             }
         }
         return new self(type: $type, condition: $condition, relation: $relation, wildcard: $wildcard);

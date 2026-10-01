@@ -37,17 +37,25 @@ final readonly class BatchCheckItem implements \JsonSerializable
         $context = null;
         if (array_key_exists('context', $data)) {
             $context = $data['context'];
-            if (!is_array($context)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+            if ($context === null) {
+                $context = null;
+            } else {
+                if (!is_array($context)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                }
             }
         }
         $contextualTuples = null;
         if (array_key_exists('contextual_tuples', $data)) {
             $contextualTuples = $data['contextual_tuples'];
-            if (!is_array($contextualTuples)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+            if ($contextualTuples === null) {
+                $contextualTuples = null;
+            } else {
+                if (!is_array($contextualTuples)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                }
+                $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
             }
-            $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
         }
         return new self(correlationId: $correlationId, tupleKey: $tupleKey, context: $context, contextualTuples: $contextualTuples);
     }

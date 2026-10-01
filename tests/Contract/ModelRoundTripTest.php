@@ -37,6 +37,7 @@ final class ModelRoundTripTest extends TestCase
             }
             /** @var array<string, mixed> $example */
             $example = $schema['example'];
+            /** @psalm-suppress UndefinedClass */
             $class = 'Curentis\\OpenFga\\Model\\' . NameConverter::schemaToClassName($name);
             if (!class_exists($class) || !method_exists($class, 'fromArray')) {
                 continue;
@@ -52,12 +53,21 @@ final class ModelRoundTripTest extends TestCase
     #[DataProvider('schemaExamples')]
     public function testExampleRoundTrips(string $class, array $example): void
     {
-        try {
-            $model = (new \ReflectionMethod($class, 'fromArray'))->invoke(null, $example);
-        } catch (FgaValidationException $e) {
-            self::markTestSkipped('OpenAPI example is not valid for generated model: ' . $e->getMessage());
+        $fromArray = [$class, 'fromArray'];
+        if (!is_callable($fromArray)) {
+            self::fail(sprintf('%s::fromArray is not callable', $class));
         }
-        self::assertIsObject($model);
+
+        try {
+            /** @var callable(array<string, mixed>): object $fromArray */
+            $model = $fromArray($example);
+        } catch (\Throwable $e) {
+            if ($e instanceof FgaValidationException) {
+                self::markTestSkipped('OpenAPI example is not valid for generated model: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
         self::assertTrue(method_exists($model, 'toArray'));
         /** @var array<string, mixed> $roundTripped */
         $roundTripped = $model->toArray();

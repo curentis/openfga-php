@@ -56,45 +56,61 @@ final readonly class ListUsersBody implements \JsonSerializable
         $authorizationModelId = null;
         if (array_key_exists('authorization_model_id', $data)) {
             $authorizationModelId = $data['authorization_model_id'];
-            if (!is_string($authorizationModelId)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            if ($authorizationModelId === null) {
+                $authorizationModelId = null;
+            } else {
+                if (!is_string($authorizationModelId)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                }
             }
         }
         $consistency = null;
         if (array_key_exists('consistency', $data)) {
             $consistency = $data['consistency'];
-            if (!is_string($consistency)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
-            }
-            if (!in_array($consistency, [
-                0 => 'UNSPECIFIED',
-                1 => 'MINIMIZE_LATENCY',
-                2 => 'HIGHER_CONSISTENCY',
-            ], true)) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+            if ($consistency === null) {
+                $consistency = null;
+            } else {
+                if (!is_string($consistency)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
+                if (!in_array($consistency, [
+                    0 => 'UNSPECIFIED',
+                    1 => 'MINIMIZE_LATENCY',
+                    2 => 'HIGHER_CONSISTENCY',
+                ], true)) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
             }
         }
         $context = null;
         if (array_key_exists('context', $data)) {
             $context = $data['context'];
-            if (!is_array($context)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+            if ($context === null) {
+                $context = null;
+            } else {
+                if (!is_array($context)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                }
             }
         }
         $contextualTuples = null;
         if (array_key_exists('contextual_tuples', $data)) {
             $contextualTuples = $data['contextual_tuples'];
-            if (!is_array($contextualTuples)) {
-                throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
-            }
-            $contextualTuplesList = [];
-            foreach ($contextualTuples as $idx => $item) {
-                if (!is_array($item)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+            if ($contextualTuples === null) {
+                $contextualTuples = null;
+            } else {
+                if (!is_array($contextualTuples)) {
+                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
-                $contextualTuplesList[] = TupleKey::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                $contextualTuplesList = [];
+                foreach ($contextualTuples as $idx => $item) {
+                    if (!is_array($item)) {
+                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                    }
+                    $contextualTuplesList[] = TupleKey::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
+                }
+                $contextualTuples = $contextualTuplesList;
             }
-            $contextualTuples = $contextualTuplesList;
         }
         return new self(object: $object, relation: $relation, userFilters: $userFilters, authorizationModelId: $authorizationModelId, consistency: $consistency, context: $context, contextualTuples: $contextualTuples);
     }

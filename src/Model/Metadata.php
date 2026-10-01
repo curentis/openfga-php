@@ -22,24 +22,36 @@ final readonly class Metadata implements \JsonSerializable
         $module = null;
         if (array_key_exists('module', $data)) {
             $module = $data['module'];
-            if (!is_string($module)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
+            if ($module === null) {
+                $module = null;
+            } else {
+                if (!is_string($module)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
+                }
             }
         }
         $relations = null;
         if (array_key_exists('relations', $data)) {
             $relations = $data['relations'];
-            if (!is_array($relations)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
+            if ($relations === null) {
+                $relations = null;
+            } else {
+                if (!is_array($relations)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
+                }
             }
         }
         $sourceInfo = null;
         if (array_key_exists('source_info', $data)) {
             $sourceInfo = $data['source_info'];
-            if (!is_array($sourceInfo)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
+            if ($sourceInfo === null) {
+                $sourceInfo = null;
+            } else {
+                if (!is_array($sourceInfo)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
+                }
+                $sourceInfo = SourceInfo::fromArray($sourceInfo, ($path === '' ? '' : $path . '.') . 'source_info');
             }
-            $sourceInfo = SourceInfo::fromArray($sourceInfo, ($path === '' ? '' : $path . '.') . 'source_info');
         }
         return new self(module: $module, relations: $relations, sourceInfo: $sourceInfo);
     }

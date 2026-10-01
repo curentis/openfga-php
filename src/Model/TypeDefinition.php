@@ -29,16 +29,24 @@ final readonly class TypeDefinition implements \JsonSerializable
         $metadata = null;
         if (array_key_exists('metadata', $data)) {
             $metadata = $data['metadata'];
-            if (!is_array($metadata)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
+            if ($metadata === null) {
+                $metadata = null;
+            } else {
+                if (!is_array($metadata)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
+                }
+                $metadata = Metadata::fromArray($metadata, ($path === '' ? '' : $path . '.') . 'metadata');
             }
-            $metadata = Metadata::fromArray($metadata, ($path === '' ? '' : $path . '.') . 'metadata');
         }
         $relations = null;
         if (array_key_exists('relations', $data)) {
             $relations = $data['relations'];
-            if (!is_array($relations)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
+            if ($relations === null) {
+                $relations = null;
+            } else {
+                if (!is_array($relations)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
+                }
             }
         }
         return new self(type: $type, metadata: $metadata, relations: $relations);

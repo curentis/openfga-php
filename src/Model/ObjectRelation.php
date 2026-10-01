@@ -20,15 +20,23 @@ final readonly class ObjectRelation implements \JsonSerializable
         $object = null;
         if (array_key_exists('object', $data)) {
             $object = $data['object'];
-            if (!is_string($object)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
+            if ($object === null) {
+                $object = null;
+            } else {
+                if (!is_string($object)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
+                }
             }
         }
         $relation = null;
         if (array_key_exists('relation', $data)) {
             $relation = $data['relation'];
-            if (!is_string($relation)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            if ($relation === null) {
+                $relation = null;
+            } else {
+                if (!is_string($relation)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+                }
             }
         }
         return new self(object: $object, relation: $relation);

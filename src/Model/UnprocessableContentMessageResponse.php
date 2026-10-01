@@ -20,20 +20,28 @@ final readonly class UnprocessableContentMessageResponse implements \JsonSeriali
         $code = null;
         if (array_key_exists('code', $data)) {
             $code = $data['code'];
-            if (!is_string($code)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
-            }
-            try {
-                $code = UnprocessableContentErrorCode::from($code);
-            } catch (\ValueError) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'code'));
+            if ($code === null) {
+                $code = null;
+            } else {
+                if (!is_string($code)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
+                }
+                try {
+                    $code = UnprocessableContentErrorCode::from($code);
+                } catch (\ValueError) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'code'));
+                }
             }
         }
         $message = null;
         if (array_key_exists('message', $data)) {
             $message = $data['message'];
-            if (!is_string($message)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+            if ($message === null) {
+                $message = null;
+            } else {
+                if (!is_string($message)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                }
             }
         }
         return new self(code: $code, message: $message);
@@ -42,7 +50,7 @@ final readonly class UnprocessableContentMessageResponse implements \JsonSeriali
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['code' => $this->code->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['code' => $this->code?->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

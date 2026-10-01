@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Client;
 
+use Curentis\OpenFga\Client\Options\ConflictOptions;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
@@ -44,8 +45,11 @@ final class ClientRequestMapper
         );
     }
 
-    public static function toWriteBody(ClientWriteRequest $request, ?string $authorizationModelId): WriteBody
-    {
+    public static function toWriteBody(
+        ClientWriteRequest $request,
+        ?string $authorizationModelId,
+        ConflictOptions $conflict = new ConflictOptions(),
+    ): WriteBody {
         $writes = null;
         if ($request->writes !== []) {
             $tupleKeys = array_map(
@@ -59,7 +63,10 @@ final class ClientRequestMapper
                 ),
                 $request->writes,
             );
-            $writes = new WriteRequestWrites(tupleKeys: $tupleKeys);
+            $writes = new WriteRequestWrites(
+                tupleKeys: $tupleKeys,
+                onDuplicate: $conflict->onDuplicateWrites,
+            );
         }
 
         $deletes = null;
@@ -72,7 +79,10 @@ final class ClientRequestMapper
                 ),
                 $request->deletes,
             );
-            $deletes = new WriteRequestDeletes(tupleKeys: $tupleKeys);
+            $deletes = new WriteRequestDeletes(
+                tupleKeys: $tupleKeys,
+                onMissing: $conflict->onMissingDeletes,
+            );
         }
 
         return new WriteBody(

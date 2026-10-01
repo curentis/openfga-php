@@ -13,6 +13,7 @@ use Curentis\OpenFga\Exception\FgaApiValidationException;
 use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Http\RetryPolicy;
+use Curentis\OpenFga\Tests\Support\CallCounter;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
 use Curentis\OpenFga\Tests\Support\TestNetworkException;
@@ -52,11 +53,11 @@ final class RetryPolicyTest extends TestCase
     public function testHonoursRetryAfterSeconds(): void
     {
         $policy = $this->policy();
-        $calls = 0;
+        $counter = new CallCounter();
         $response = $policy->send(
-            function () use (&$calls): Response {
-                ++$calls;
-                if ($calls === 1) {
+            function () use ($counter): Response {
+                $counter->increment();
+                if ($counter->count === 1) {
                     return new Response(429, ['Retry-After' => '2'], '{"code":"rate_limit","message":"slow down"}');
                 }
 
@@ -68,19 +69,19 @@ final class RetryPolicyTest extends TestCase
         );
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame(2, $calls);
+        self::assertSame(2, $counter->count);
         self::assertSame([2000], $this->sleeper->sleptMilliseconds);
     }
 
     public function testInvalidRetryAfterFallsBackToSeededBackoff(): void
     {
         $policy = $this->policy(maxRetry: 1);
-        $calls = 0;
+        $counter = new CallCounter();
 
         $response = $policy->send(
-            function () use (&$calls): Response {
-                ++$calls;
-                if ($calls === 1) {
+            function () use ($counter): Response {
+                $counter->increment();
+                if ($counter->count === 1) {
                     return new Response(429, ['Retry-After' => '3600'], '{}');
                 }
 
@@ -98,12 +99,12 @@ final class RetryPolicyTest extends TestCase
     {
         $policy = $this->policy(maxRetry: 1);
         $past = gmdate('D, d M Y H:i:s', self::FIXED_EPOCH - 30) . ' GMT';
-        $calls = 0;
+        $counter = new CallCounter();
 
         $policy->send(
-            function () use (&$calls, $past): Response {
-                ++$calls;
-                if ($calls === 1) {
+            function () use ($counter, $past): Response {
+                $counter->increment();
+                if ($counter->count === 1) {
                     return new Response(429, ['Retry-After' => $past], '{}');
                 }
 
@@ -136,12 +137,12 @@ final class RetryPolicyTest extends TestCase
     public function testDoesNotRetryNonRetryableStatuses(int $status, string $expectedClass): void
     {
         $policy = $this->policy(maxRetry: 3);
-        $calls = 0;
+        $counter = new CallCounter();
 
         try {
             $policy->send(
-                static function () use (&$calls, $status): Response {
-                    ++$calls;
+                function () use ($counter, $status): Response {
+                    $counter->increment();
 
                     return new Response($status, [], '{"code":"err","message":"nope"}');
                 },
@@ -151,9 +152,8 @@ final class RetryPolicyTest extends TestCase
             self::fail('Expected exception');
         } catch (FgaApiException $exception) {
             self::assertInstanceOf($expectedClass, $exception);
+            self::assertSame(1, $counter->count);
         }
-
-        self::assertSame(1, $calls);
         self::assertSame([], $this->sleeper->sleptMilliseconds);
     }
 
@@ -166,18 +166,19 @@ final class RetryPolicyTest extends TestCase
         yield '502' => [502];
         yield '503' => [503];
         yield '504' => [504];
+        yield '599' => [599];
     }
 
     #[DataProvider('retryableServerErrorProvider')]
     public function testRetriesRetryableServerErrors(int $status): void
     {
         $policy = $this->policy(maxRetry: 1);
-        $calls = 0;
+        $counter = new CallCounter();
 
         $response = $policy->send(
-            function () use (&$calls, $status): Response {
-                ++$calls;
-                if ($calls === 1) {
+            function () use ($counter, $status): Response {
+                $counter->increment();
+                if ($counter->count === 1) {
                     return new Response($status, [], '{"code":"internal","message":"try again"}');
                 }
 
@@ -188,19 +189,19 @@ final class RetryPolicyTest extends TestCase
         );
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame(2, $calls);
+        self::assertSame(2, $counter->count);
         self::assertCount(1, $this->sleeper->sleptMilliseconds);
     }
 
     public function testMaxRetryZeroPerformsSingleAttempt(): void
     {
         $policy = $this->policy(maxRetry: 0);
-        $calls = 0;
+        $counter = new CallCounter();
 
         try {
             $policy->send(
-                static function () use (&$calls): Response {
-                    ++$calls;
+                function () use ($counter): Response {
+                    $counter->increment();
 
                     return new Response(503, [], '{}');
                 },
@@ -209,10 +210,41 @@ final class RetryPolicyTest extends TestCase
             );
             self::fail('Expected exception');
         } catch (FgaApiInternalException) {
+            self::assertSame(1, $counter->count);
         }
-
-        self::assertSame(1, $calls);
         self::assertSame([], $this->sleeper->sleptMilliseconds);
+    }
+
+    public function testMinWaitBelowOneThrowsValidationException(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('minWaitMs');
+
+        $this->policy(minWaitMs: 0);
+    }
+
+    public function testMaxRetryFifteenIsAccepted(): void
+    {
+        $policy = $this->policy(maxRetry: 15);
+        $response = $policy->send(
+            static fn(): Response => new Response(200, [], '{}'),
+            'GET',
+            '/healthz',
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    public function testHttp300IsNotTreatedAsSuccess(): void
+    {
+        $policy = $this->policy(maxRetry: 0);
+
+        $this->expectException(FgaApiException::class);
+        $policy->send(
+            static fn(): Response => new Response(300, [], '{}'),
+            'GET',
+            '/healthz',
+        );
     }
 
     public function testMaxRetryAboveFifteenThrowsValidationException(): void
@@ -223,16 +255,40 @@ final class RetryPolicyTest extends TestCase
         $this->policy(maxRetry: 16);
     }
 
+    public function testDoesNotRetryPastMaxRetryOnServerErrors(): void
+    {
+        $policy = $this->policy(maxRetry: 1);
+        $counter = new CallCounter();
+
+        try {
+            $policy->send(
+                function () use ($counter): Response {
+                    $counter->increment();
+                    if ($counter->count > 2) {
+                        throw new \RuntimeException('retried past the configured limit');
+                    }
+
+                    return new Response(503, [], '{}');
+                },
+                'GET',
+                '/stores',
+            );
+            self::fail('Expected exception');
+        } catch (FgaApiInternalException) {
+            self::assertSame(2, $counter->count);
+        }
+    }
+
     public function testNetworkErrorIsRetriedThenSurfacedAsFgaNetworkException(): void
     {
         $policy = $this->policy(maxRetry: 2);
-        $calls = 0;
+        $counter = new CallCounter();
         $root = new TestNetworkException('connection reset');
 
         try {
             $policy->send(
-                function () use (&$calls, $root): Response {
-                    ++$calls;
+                function () use ($counter, $root): Response {
+                    $counter->increment();
                     throw $root;
                 },
                 'POST',
@@ -241,9 +297,8 @@ final class RetryPolicyTest extends TestCase
             self::fail('Expected exception');
         } catch (FgaNetworkException $exception) {
             self::assertSame($root, $exception->getPrevious());
+            self::assertSame(3, $counter->count);
         }
-
-        self::assertSame(3, $calls);
         self::assertSame([123, 298], $this->sleeper->sleptMilliseconds);
     }
 

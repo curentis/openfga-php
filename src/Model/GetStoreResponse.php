@@ -51,10 +51,14 @@ final readonly class GetStoreResponse implements \JsonSerializable
         $deletedAt = null;
         if (array_key_exists('deleted_at', $data)) {
             $deletedAt = $data['deleted_at'];
-            if (!is_string($deletedAt)) {
-                throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'deleted_at'));
+            if ($deletedAt === null) {
+                $deletedAt = null;
+            } else {
+                if (!is_string($deletedAt)) {
+                    throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'deleted_at'));
+                }
+                $deletedAt = new \DateTimeImmutable($deletedAt);
             }
-            $deletedAt = new \DateTimeImmutable($deletedAt);
         }
         return new self(createdAt: $createdAt, id: $id, name: $name, updatedAt: $updatedAt, deletedAt: $deletedAt);
     }

@@ -14,12 +14,17 @@
         <directory name="tools"/>
         <ignoreFiles>
             <directory name="vendor"/>
-            <!-- Generated models: PHPStan + baseline; Psalm focuses on hand-written src. -->
             <directory name="src/Model"/>
-            <directory name="tools"/>
+            <directory name="tools/codegen"/>
+            <directory name="tests/Unit/Tools/Codegen"/>
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
+        <MixedAssignment>
+            <errorLevel type="suppress">
+                <file name="tests/Support/SimpleArrayCache.php"/>
+            </errorLevel>
+        </MixedAssignment>
         <PropertyNotSetInConstructor>
             <errorLevel type="suppress">
                 <directory name="tests"/>

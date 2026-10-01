@@ -6,6 +6,7 @@ namespace Curentis\OpenFga\Tests\Unit\Http;
 
 use Curentis\OpenFga\Http\RetryAfter;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\HeaderLineResponse;
 use DateTimeImmutable;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,7 +26,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRetryAfterSecondsReturnsMilliseconds(): void
     {
-        $response = new Response(429, ['Retry-After' => '3']);
+        $response = new HeaderLineResponse(new Response(429), 'Retry-After', "\x0b3\x0b");
 
         self::assertSame(3000, RetryAfter::delayMs($response, $this->clock));
     }
@@ -46,6 +47,27 @@ final class RetryAfterTest extends TestCase
         self::assertNull(RetryAfter::delayMs($response, $this->clock));
     }
 
+    public function testRetryAfterAtMaxSecondsIsAccepted(): void
+    {
+        $response = new Response(429, ['Retry-After' => '1800']);
+
+        self::assertSame(1_800_000, RetryAfter::delayMs($response, $this->clock));
+    }
+
+    public function testRetryAfterZeroReturnsNull(): void
+    {
+        $response = new Response(429, ['Retry-After' => '0']);
+
+        self::assertNull(RetryAfter::delayMs($response, $this->clock));
+    }
+
+    public function testRetryAfterRejectsDigitsWithTrailingText(): void
+    {
+        $response = new Response(429, ['Retry-After' => '12abc']);
+
+        self::assertNull(RetryAfter::delayMs($response, $this->clock));
+    }
+
     public function testRetryAfterAboveMaxSecondsReturnsNull(): void
     {
         $response = new Response(429, ['Retry-After' => '1801']);
@@ -62,7 +84,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRateLimitResetDeltaForm(): void
     {
-        $response = new Response(429, ['X-Rate-Limit-Reset' => '8']);
+        $response = new HeaderLineResponse(new Response(429), 'X-Rate-Limit-Reset', "\x0b8\x0b");
 
         self::assertSame(8000, RetryAfter::delayMs($response, $this->clock));
     }
@@ -84,6 +106,7 @@ final class RetryAfterTest extends TestCase
     {
         yield 'retry-after garbage' => [['Retry-After' => 'not-a-date']];
         yield 'rate limit garbage' => [['X-RateLimit-Reset' => 'nope']];
+        yield 'rate limit trailing text' => [['X-RateLimit-Reset' => '12abc']];
         yield 'empty headers' => [[]];
     }
 

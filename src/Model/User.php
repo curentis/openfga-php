@@ -21,26 +21,38 @@ final readonly class User implements \JsonSerializable
         $object = null;
         if (array_key_exists('object', $data)) {
             $object = $data['object'];
-            if (!is_array($object)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
+            if ($object === null) {
+                $object = null;
+            } else {
+                if (!is_array($object)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
+                }
+                $object = FgaObject::fromArray($object, ($path === '' ? '' : $path . '.') . 'object');
             }
-            $object = FgaObject::fromArray($object, ($path === '' ? '' : $path . '.') . 'object');
         }
         $userset = null;
         if (array_key_exists('userset', $data)) {
             $userset = $data['userset'];
-            if (!is_array($userset)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'userset'));
+            if ($userset === null) {
+                $userset = null;
+            } else {
+                if (!is_array($userset)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'userset'));
+                }
+                $userset = UsersetUser::fromArray($userset, ($path === '' ? '' : $path . '.') . 'userset');
             }
-            $userset = UsersetUser::fromArray($userset, ($path === '' ? '' : $path . '.') . 'userset');
         }
         $wildcard = null;
         if (array_key_exists('wildcard', $data)) {
             $wildcard = $data['wildcard'];
-            if (!is_array($wildcard)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
+            if ($wildcard === null) {
+                $wildcard = null;
+            } else {
+                if (!is_array($wildcard)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
+                }
+                $wildcard = TypedWildcard::fromArray($wildcard, ($path === '' ? '' : $path . '.') . 'wildcard');
             }
-            $wildcard = TypedWildcard::fromArray($wildcard, ($path === '' ? '' : $path . '.') . 'wildcard');
         }
         return new self(object: $object, userset: $userset, wildcard: $wildcard);
     }

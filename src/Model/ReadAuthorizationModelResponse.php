@@ -19,10 +19,14 @@ final readonly class ReadAuthorizationModelResponse implements \JsonSerializable
         $authorizationModel = null;
         if (array_key_exists('authorization_model', $data)) {
             $authorizationModel = $data['authorization_model'];
-            if (!is_array($authorizationModel)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'authorization_model'));
+            if ($authorizationModel === null) {
+                $authorizationModel = null;
+            } else {
+                if (!is_array($authorizationModel)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'authorization_model'));
+                }
+                $authorizationModel = AuthorizationModel::fromArray($authorizationModel, ($path === '' ? '' : $path . '.') . 'authorization_model');
             }
-            $authorizationModel = AuthorizationModel::fromArray($authorizationModel, ($path === '' ? '' : $path . '.') . 'authorization_model');
         }
         return new self(authorizationModel: $authorizationModel);
     }

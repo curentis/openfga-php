@@ -35,14 +35,18 @@ final readonly class WriteRequestDeletes implements \JsonSerializable
         $onMissing = null;
         if (array_key_exists('on_missing', $data)) {
             $onMissing = $data['on_missing'];
-            if (!is_string($onMissing)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_missing'));
-            }
-            if (!in_array($onMissing, [
-                0 => 'error',
-                1 => 'ignore',
-            ], true)) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_missing'));
+            if ($onMissing === null) {
+                $onMissing = null;
+            } else {
+                if (!is_string($onMissing)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_missing'));
+                }
+                if (!in_array($onMissing, [
+                    0 => 'error',
+                    1 => 'ignore',
+                ], true)) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_missing'));
+                }
             }
         }
         return new self(tupleKeys: $tupleKeys, onMissing: $onMissing);

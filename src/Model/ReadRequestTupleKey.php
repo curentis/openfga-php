@@ -21,22 +21,34 @@ final readonly class ReadRequestTupleKey implements \JsonSerializable
         $object = null;
         if (array_key_exists('object', $data)) {
             $object = $data['object'];
-            if (!is_string($object)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
+            if ($object === null) {
+                $object = null;
+            } else {
+                if (!is_string($object)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
+                }
             }
         }
         $relation = null;
         if (array_key_exists('relation', $data)) {
             $relation = $data['relation'];
-            if (!is_string($relation)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            if ($relation === null) {
+                $relation = null;
+            } else {
+                if (!is_string($relation)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+                }
             }
         }
         $user = null;
         if (array_key_exists('user', $data)) {
             $user = $data['user'];
-            if (!is_string($user)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
+            if ($user === null) {
+                $user = null;
+            } else {
+                if (!is_string($user)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
+                }
             }
         }
         return new self(object: $object, relation: $relation, user: $user);

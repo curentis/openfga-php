@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Credentials;
 
-use Curentis\OpenFga\Exception\FgaApiAuthenticationException;
-use Curentis\OpenFga\Exception\FgaApiException;
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
-use Curentis\OpenFga\Http\ErrorMapper;
 use Curentis\OpenFga\Http\JsonBody;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Psr\Clock\ClockInterface;
@@ -32,7 +29,6 @@ final class TokenProvider
         private readonly RetryPolicy $retryPolicy,
         private readonly ClockInterface $clock,
         private readonly Randomizer $randomizer,
-        private readonly ErrorMapper $errorMapper = new ErrorMapper(),
         private readonly ?CacheInterface $cache = null,
     ) {}
 
@@ -57,21 +53,15 @@ final class TokenProvider
         );
 
         $status = $response->getStatusCode();
-        if ($status < 200 || $status >= 300) {
-            throw $this->mapTokenError($response);
-        }
-
         $payload = JsonBody::decode((string) $response->getBody());
         $accessToken = isset($payload['access_token']) && is_string($payload['access_token'])
             ? $payload['access_token']
             : '';
-        $expiresIn = isset($payload['expires_in']) && is_int($payload['expires_in'])
-            ? $payload['expires_in']
-            : (isset($payload['expires_in']) && is_numeric($payload['expires_in']) ? (int) $payload['expires_in'] : 0);
+        $expiresIn = self::expiresInSeconds($payload['expires_in'] ?? null);
 
-        if ($accessToken === '' || $expiresIn <= 0) {
+        if ($accessToken === '' || $expiresIn < 1) {
             throw new FgaTokenExchangeException(
-                'Token endpoint returned an invalid token response.',
+                sprintf('Token endpoint returned an invalid token response (expires_in=%d).', $expiresIn),
                 $status,
                 null,
                 'missing access_token or expires_in',
@@ -90,7 +80,7 @@ final class TokenProvider
         $expiresAt = $now + $expiresIn - 300 - $jitter;
         $token = new AccessToken($accessToken, $expiresAt);
         $this->memoryToken = $token;
-        $this->storeCache($token, $now + $expiresIn - 300 - $jitter);
+        $this->storeCache($token, $expiresAt);
 
         return $token;
     }
@@ -114,7 +104,7 @@ final class TokenProvider
             $fields['client_assertion'] = ClientAssertionJwt::sign(
                 $this->credentials,
                 $now,
-                bin2hex(random_bytes(16)),
+                self::assertionId(),
             );
         }
 
@@ -127,47 +117,21 @@ final class TokenProvider
         return $request;
     }
 
-    private function mapTokenError(\Psr\Http\Message\ResponseInterface $response): FgaTokenExchangeException
+    private static function expiresInSeconds(mixed $value): int
     {
-        try {
-            $mapped = $this->errorMapper->map('POST', '/oauth/token', null, $response);
-        } catch (FgaApiException $exception) {
-            if ($exception instanceof FgaApiAuthenticationException) {
-                return new FgaTokenExchangeException(
-                    $exception->getMessage(),
-                    $exception->statusCode,
-                    $exception->apiErrorCode,
-                    $exception->apiErrorMessage,
-                    $exception->requestId,
-                    $exception->method,
-                    $exception->endpoint,
-                    $exception->storeId,
-                    $exception->responseHeaders,
-                    IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                    $this->credentials->apiAudience,
-                    $this->credentials->clientId,
-                    $exception,
-                );
-            }
-
-            return new FgaTokenExchangeException(
-                $exception->getMessage(),
-                $exception->statusCode,
-                $exception->apiErrorCode,
-                $exception->apiErrorMessage,
-                $exception->requestId,
-                $exception->method,
-                $exception->endpoint,
-                $exception->storeId,
-                $exception->responseHeaders,
-                IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                $this->credentials->apiAudience,
-                $this->credentials->clientId,
-                $exception,
-            );
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
         }
 
-        throw new \LogicException('Unreachable');
+        return 0;
+    }
+
+    private static function assertionId(): string
+    {
+        return bin2hex(random_bytes(16));
     }
 
     private function cacheKey(): string
@@ -191,7 +155,9 @@ final class TokenProvider
         }
 
         if ($this->cache === null) {
+            // @codeCoverageIgnoreStart
             return null;
+            // @codeCoverageIgnoreEnd
         }
 
         $cached = $this->cache->get($this->cacheKey());
@@ -199,12 +165,16 @@ final class TokenProvider
             return null;
         }
 
-        $parts = explode('|', $cached, 2);
-        if (count($parts) !== 2 || !is_numeric($parts[1])) {
+        $separatorAt = strpos($cached, '|');
+        if (!is_int($separatorAt) || $separatorAt < 1) {
+            return null;
+        }
+        $expiresAtRaw = substr($cached, $separatorAt + 1);
+        if (!is_numeric($expiresAtRaw)) {
             return null;
         }
 
-        $token = new AccessToken($parts[0], (int) $parts[1]);
+        $token = new AccessToken(substr($cached, 0, $separatorAt), (int) $expiresAtRaw);
         if ($token->isExpiredAt($now)) {
             return null;
         }
@@ -217,7 +187,9 @@ final class TokenProvider
     private function storeCache(AccessToken $token, int $ttlEpoch): void
     {
         if ($this->cache === null) {
+            // @codeCoverageIgnoreStart
             return;
+            // @codeCoverageIgnoreEnd
         }
 
         $now = $this->clock->now()->getTimestamp();

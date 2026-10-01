@@ -19,10 +19,14 @@ final readonly class ExpandResponse implements \JsonSerializable
         $tree = null;
         if (array_key_exists('tree', $data)) {
             $tree = $data['tree'];
-            if (!is_array($tree)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tree'));
+            if ($tree === null) {
+                $tree = null;
+            } else {
+                if (!is_array($tree)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tree'));
+                }
+                $tree = UsersetTree::fromArray($tree, ($path === '' ? '' : $path . '.') . 'tree');
             }
-            $tree = UsersetTree::fromArray($tree, ($path === '' ? '' : $path . '.') . 'tree');
         }
         return new self(tree: $tree);
     }

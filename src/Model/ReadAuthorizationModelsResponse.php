@@ -35,8 +35,12 @@ final readonly class ReadAuthorizationModelsResponse implements \JsonSerializabl
         $continuationToken = null;
         if (array_key_exists('continuation_token', $data)) {
             $continuationToken = $data['continuation_token'];
-            if (!is_string($continuationToken)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+            if ($continuationToken === null) {
+                $continuationToken = null;
+            } else {
+                if (!is_string($continuationToken)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+                }
             }
         }
         return new self(authorizationModels: $authorizationModels, continuationToken: $continuationToken);

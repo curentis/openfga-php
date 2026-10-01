@@ -36,20 +36,28 @@ final readonly class BatchCheckBody implements \JsonSerializable
         $authorizationModelId = null;
         if (array_key_exists('authorization_model_id', $data)) {
             $authorizationModelId = $data['authorization_model_id'];
-            if (!is_string($authorizationModelId)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            if ($authorizationModelId === null) {
+                $authorizationModelId = null;
+            } else {
+                if (!is_string($authorizationModelId)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                }
             }
         }
         $consistency = null;
         if (array_key_exists('consistency', $data)) {
             $consistency = $data['consistency'];
-            if (!is_string($consistency)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
-            }
-            try {
-                $consistency = ConsistencyPreference::from($consistency);
-            } catch (\ValueError) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+            if ($consistency === null) {
+                $consistency = null;
+            } else {
+                if (!is_string($consistency)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
+                try {
+                    $consistency = ConsistencyPreference::from($consistency);
+                } catch (\ValueError) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
             }
         }
         return new self(checks: $checks, authorizationModelId: $authorizationModelId, consistency: $consistency);
@@ -58,7 +66,7 @@ final readonly class BatchCheckBody implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency->value], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency?->value], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

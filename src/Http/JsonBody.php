@@ -20,10 +20,6 @@ final class JsonBody
             return '{}';
         }
 
-        if ($body instanceof \stdClass && get_object_vars($body) === []) {
-            return '{}';
-        }
-
         return json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     }
 
@@ -32,7 +28,7 @@ final class JsonBody
      */
     public static function decode(string $json): array
     {
-        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
         if (!is_array($decoded)) {
             throw new \JsonException('Expected JSON object response.');
         }

@@ -22,38 +22,54 @@ final readonly class ReadBody implements \JsonSerializable
         $consistency = null;
         if (array_key_exists('consistency', $data)) {
             $consistency = $data['consistency'];
-            if (!is_string($consistency)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
-            }
-            if (!in_array($consistency, [
-                0 => 'UNSPECIFIED',
-                1 => 'MINIMIZE_LATENCY',
-                2 => 'HIGHER_CONSISTENCY',
-            ], true)) {
-                throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+            if ($consistency === null) {
+                $consistency = null;
+            } else {
+                if (!is_string($consistency)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
+                if (!in_array($consistency, [
+                    0 => 'UNSPECIFIED',
+                    1 => 'MINIMIZE_LATENCY',
+                    2 => 'HIGHER_CONSISTENCY',
+                ], true)) {
+                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                }
             }
         }
         $continuationToken = null;
         if (array_key_exists('continuation_token', $data)) {
             $continuationToken = $data['continuation_token'];
-            if (!is_string($continuationToken)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+            if ($continuationToken === null) {
+                $continuationToken = null;
+            } else {
+                if (!is_string($continuationToken)) {
+                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+                }
             }
         }
         $pageSize = null;
         if (array_key_exists('page_size', $data)) {
             $pageSize = $data['page_size'];
-            if (!is_integer($pageSize)) {
-                throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'page_size'));
+            if ($pageSize === null) {
+                $pageSize = null;
+            } else {
+                if (!is_integer($pageSize)) {
+                    throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'page_size'));
+                }
             }
         }
         $tupleKey = null;
         if (array_key_exists('tuple_key', $data)) {
             $tupleKey = $data['tuple_key'];
-            if (!is_array($tupleKey)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            if ($tupleKey === null) {
+                $tupleKey = null;
+            } else {
+                if (!is_array($tupleKey)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+                }
+                $tupleKey = ReadRequestTupleKey::fromArray($tupleKey, ($path === '' ? '' : $path . '.') . 'tuple_key');
             }
-            $tupleKey = ReadRequestTupleKey::fromArray($tupleKey, ($path === '' ? '' : $path . '.') . 'tuple_key');
         }
         return new self(consistency: $consistency, continuationToken: $continuationToken, pageSize: $pageSize, tupleKey: $tupleKey);
     }

@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Client;
 
+use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\RequestOptions;
+use Curentis\OpenFga\Client\Options\WriteOptions;
+use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
+use Curentis\OpenFga\Client\Request\ClientListRelationsRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
+use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Model\Assertion;
-use Curentis\OpenFga\Model\BatchCheckItem;
-use Curentis\OpenFga\Model\BatchCheckResponse;
 use Curentis\OpenFga\Model\CheckResponse;
 use Curentis\OpenFga\Model\ConsistencyPreference;
 use Curentis\OpenFga\Model\CreateStoreResponse;
@@ -37,9 +41,9 @@ use Psr\Http\Message\ResponseInterface;
 
 interface OpenFgaClientInterface
 {
-    public function withStoreId(string $storeId): self;
+    public function withStoreId(string $storeId): OpenFgaClientInterface;
 
-    public function withAuthorizationModelId(string $authorizationModelId): self;
+    public function withAuthorizationModelId(string $authorizationModelId): OpenFgaClientInterface;
 
     public function listStores(?PaginationOptions $page = null, ?string $name = null, ?RequestOptions $options = null): ListStoresResponse;
 
@@ -59,13 +63,13 @@ interface OpenFgaClientInterface
 
     public function read(?ReadBody $request = null, ?PaginationOptions $page = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ReadResponse;
 
-    public function write(ClientWriteRequest $request, ?RequestOptions $options = null): ClientWriteResponse;
+    public function write(ClientWriteRequest $request, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse;
 
     /** @param list<ClientTupleKey> $tuples */
-    public function writeTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse;
+    public function writeTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse;
 
     /** @param list<ClientTupleKeyWithoutCondition> $tuples */
-    public function deleteTuples(array $tuples, ?RequestOptions $options = null): ClientWriteResponse;
+    public function deleteTuples(array $tuples, ?WriteOptions $write = null, ?RequestOptions $options = null): ClientWriteResponse;
 
     public function readChanges(
         ?string $type = null,
@@ -76,8 +80,10 @@ interface OpenFgaClientInterface
 
     public function check(ClientCheckRequest $request, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): CheckResponse;
 
-    /** @param list<BatchCheckItem> $checks */
-    public function batchCheck(array $checks, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): BatchCheckResponse;
+    /** @param list<ClientBatchCheckItem> $checks */
+    public function batchCheck(array $checks, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientBatchCheckResponse;
+
+    public function listRelations(ClientListRelationsRequest $request, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientListRelationsResponse;
 
     public function expand(ExpandBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ExpandResponse;
 

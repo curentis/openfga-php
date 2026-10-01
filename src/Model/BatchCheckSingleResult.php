@@ -20,17 +20,25 @@ final readonly class BatchCheckSingleResult implements \JsonSerializable
         $allowed = null;
         if (array_key_exists('allowed', $data)) {
             $allowed = $data['allowed'];
-            if (!is_bool($allowed)) {
-                throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
+            if ($allowed === null) {
+                $allowed = null;
+            } else {
+                if (!is_bool($allowed)) {
+                    throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
+                }
             }
         }
         $error = null;
         if (array_key_exists('error', $data)) {
             $error = $data['error'];
-            if (!is_array($error)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'error'));
+            if ($error === null) {
+                $error = null;
+            } else {
+                if (!is_array($error)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'error'));
+                }
+                $error = CheckError::fromArray($error, ($path === '' ? '' : $path . '.') . 'error');
             }
-            $error = CheckError::fromArray($error, ($path === '' ? '' : $path . '.') . 'error');
         }
         return new self(allowed: $allowed, error: $error);
     }

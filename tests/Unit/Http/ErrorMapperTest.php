@@ -49,11 +49,20 @@ final class ErrorMapperTest extends TestCase
         $response = new Response($status, [], '{"code":"validation_error","message":"bad input"}');
         $exception = $this->mapper->map('POST', '/stores/abc/check', 'abc', $response);
 
-        self::assertInstanceOf($expectedClass, $exception);
+        self::assertSame($expectedClass, $exception::class);
         self::assertSame($status, $exception->statusCode);
         self::assertSame('POST', $exception->method);
         self::assertSame('/stores/abc/check', $exception->endpoint);
         self::assertSame('abc', $exception->storeId);
+    }
+
+    public function testUsesRawBodyWhenJsonMessageFieldIsMissing(): void
+    {
+        $response = new Response(500, [], '{"code":"internal"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame('internal', $exception->apiErrorCode);
+        self::assertSame('{"code":"internal"}', $exception->apiErrorMessage);
     }
 
     public function testParsesApiErrorCodeAndMessageFromJsonBody(): void
@@ -63,6 +72,7 @@ final class ErrorMapperTest extends TestCase
 
         self::assertSame('validation_error', $exception->apiErrorCode);
         self::assertSame('tuple key is invalid', $exception->apiErrorMessage);
+        self::assertStringContainsString('OpenFGA API request failed', $exception->getMessage());
         self::assertStringContainsString('validation_error', $exception->getMessage());
         self::assertStringContainsString('tuple key is invalid', $exception->getMessage());
     }
@@ -91,6 +101,61 @@ final class ErrorMapperTest extends TestCase
 
         self::assertInstanceOf(FgaApiRateLimitException::class, $exception);
         self::assertSame(3000, $exception->retryAfterMs);
+    }
+
+    public function testEmptyApiErrorCodeIsOmittedFromFormattedMessage(): void
+    {
+        $response = new Response(400, [], '{"code":"","message":"bad"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame('', $exception->apiErrorCode);
+        self::assertStringNotContainsString('API code:', $exception->getMessage());
+    }
+
+    public function testEmptyResponseBodyMapsToMinimalMessage(): void
+    {
+        $response = new Response(400, [], '');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertNull($exception->apiErrorCode);
+        self::assertSame('', $exception->apiErrorMessage);
+    }
+
+    public function testJsonNullBodyFallsBackToRawText(): void
+    {
+        $response = new Response(500, [], 'null');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertNull($exception->apiErrorCode);
+        self::assertSame('null', $exception->apiErrorMessage);
+        self::assertInstanceOf(FgaApiInternalException::class, $exception);
+    }
+
+    public function testMapsOther4xxToBaseApiException(): void
+    {
+        $response = new Response(402, [], '{"message":"payment required"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertSame(402, $exception->statusCode);
+        self::assertSame('payment required', $exception->apiErrorMessage);
+    }
+
+    public function testMaps5xxOutsideKnownListToInternalException(): void
+    {
+        $response = new Response(599, [], '{"message":"gateway"}');
+        $exception = $this->mapper->map('GET', '/stores', null, $response);
+
+        self::assertInstanceOf(FgaApiInternalException::class, $exception);
+    }
+
+    public function testFgaQueryIdHeaderIsUsedAsRequestId(): void
+    {
+        $response = new Response(500, ['Fga-Query-Id' => ['query-99'], 'X-Trace' => ['abc']], '{"message":"err"}');
+        $exception = $this->mapper->map('POST', '/stores/s/check', 's', $response);
+
+        self::assertSame('query-99', $exception->requestId);
+        self::assertSame(['query-99'], $exception->responseHeaders['fga-query-id'] ?? null);
+        self::assertSame(['abc'], $exception->responseHeaders['x-trace'] ?? null);
     }
 
     public function testExceptionMessageNeverContainsResponseBodySecrets(): void

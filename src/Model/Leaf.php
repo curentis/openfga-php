@@ -21,26 +21,38 @@ final readonly class Leaf implements \JsonSerializable
         $computed = null;
         if (array_key_exists('computed', $data)) {
             $computed = $data['computed'];
-            if (!is_array($computed)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computed'));
+            if ($computed === null) {
+                $computed = null;
+            } else {
+                if (!is_array($computed)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computed'));
+                }
+                $computed = Computed::fromArray($computed, ($path === '' ? '' : $path . '.') . 'computed');
             }
-            $computed = Computed::fromArray($computed, ($path === '' ? '' : $path . '.') . 'computed');
         }
         $tupleToUserset = null;
         if (array_key_exists('tupleToUserset', $data)) {
             $tupleToUserset = $data['tupleToUserset'];
-            if (!is_array($tupleToUserset)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+            if ($tupleToUserset === null) {
+                $tupleToUserset = null;
+            } else {
+                if (!is_array($tupleToUserset)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+                }
+                $tupleToUserset = UsersetTreeTupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
             }
-            $tupleToUserset = UsersetTreeTupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
         }
         $users = null;
         if (array_key_exists('users', $data)) {
             $users = $data['users'];
-            if (!is_array($users)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'users'));
+            if ($users === null) {
+                $users = null;
+            } else {
+                if (!is_array($users)) {
+                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'users'));
+                }
+                $users = Users::fromArray($users, ($path === '' ? '' : $path . '.') . 'users');
             }
-            $users = Users::fromArray($users, ($path === '' ? '' : $path . '.') . 'users');
         }
         return new self(computed: $computed, tupleToUserset: $tupleToUserset, users: $users);
     }
