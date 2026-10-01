@@ -219,6 +219,7 @@ final class TokenProviderTest extends TestCase
         $cache->set($key, 'broken');
         $cache->set($key . '_2', 'token|not-a-number');
         $cache->set($key, 'tok|' . (self::NOW + 3600) . '|extra');
+        $cache->set($key, '|' . (self::NOW + 3600));
 
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
         self::assertSame('fresh', $provider->getAccessToken());
