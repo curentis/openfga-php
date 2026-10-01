@@ -47,20 +47,48 @@ final class TransportFactoryTest extends TestCase
     public function testCreateUsesInjectedSleeperClockAndRandomizer(): void
     {
         $mock = new MockClient();
+        $retryAt = gmdate('D, d M Y H:i:s', 1_700_000_000 + 5) . ' GMT';
+        $mock->addResponse(new Response(503, ['Retry-After' => $retryAt], '{}'));
         $mock->addResponse(new Response(200, [], '{}'));
         $sleeper = new FakeSleeper();
         $clock = new FrozenClock(new \DateTimeImmutable('@1700000000'));
-        $randomizer = new Randomizer(new Mt19937(99));
 
         $transport = TransportFactory::create(
-            new ClientConfiguration(apiUrl: 'http://localhost:8080', httpClient: $mock),
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                retry: new \Curentis\OpenFga\Client\Options\RetryOptions(maxRetry: 1, minWaitMs: 100),
+            ),
             $clock,
             $sleeper,
-            $randomizer,
+            new Randomizer(new Mt19937(99)),
         );
 
         $transport->send('GET', '/stores');
-        self::assertCount(1, $mock->getRequests());
+        self::assertSame([5000], $sleeper->sleptMilliseconds);
+    }
+
+    public function testCreateUsesInjectedRandomizerForBackoff(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $sleeper = new FakeSleeper();
+        $expectedDelay = (new Randomizer(new Mt19937(99)))->getInt(100, 200);
+
+        $transport = TransportFactory::create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                retry: new \Curentis\OpenFga\Client\Options\RetryOptions(maxRetry: 1, minWaitMs: 100),
+            ),
+            null,
+            $sleeper,
+            new Randomizer(new Mt19937(99)),
+        );
+
+        $transport->send('GET', '/stores');
+        self::assertSame([$expectedDelay], $sleeper->sleptMilliseconds);
     }
 
     public function testCreateFallsBackToDefaultSleeperClockAndRandomizer(): void

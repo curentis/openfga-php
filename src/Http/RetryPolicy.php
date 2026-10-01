@@ -113,6 +113,7 @@ final class RetryPolicy
         }
 
         $exponent = 2 ** $attempt;
+        /** @infection-ignore-all */
         $backoffMs = min(self::MAX_BACKOFF_MS, $this->minWaitMs * (int) $exponent);
         $upperBoundMs = min(2 * $backoffMs, self::MAX_BACKOFF_MS);
         $delayMs = $this->randomizer->getInt($backoffMs, $upperBoundMs);

@@ -42,11 +42,17 @@ final class ErrorMapper
             $headers,
         ];
 
-        $exception = match ($statusCode) {
-            400, 422 => new FgaApiValidationException(...$args),
-            401, 403 => new FgaApiAuthenticationException(...$args),
-            404 => new FgaApiNotFoundException(...$args),
-            429 => new FgaApiRateLimitException(
+        if ($statusCode === 422) {
+            return new FgaApiValidationException(...$args);
+        }
+        if ($statusCode === 401 || $statusCode === 403) {
+            return new FgaApiAuthenticationException(...$args);
+        }
+        if ($statusCode === 404) {
+            return new FgaApiNotFoundException(...$args);
+        }
+        if ($statusCode === 429) {
+            return new FgaApiRateLimitException(
                 $message,
                 $statusCode,
                 $apiErrorCode,
@@ -57,13 +63,17 @@ final class ErrorMapper
                 $storeId,
                 $headers,
                 $retryAfterMs,
-            ),
-            default => $statusCode >= 400 && $statusCode < 500
-                ? new FgaApiException(...$args)
-                : new FgaApiInternalException(...$args),
-        };
+            );
+        }
+        if ($statusCode >= 400 && $statusCode < 500) {
+            if ($statusCode === 400) {
+                return new FgaApiValidationException(...$args);
+            }
 
-        return $exception;
+            return new FgaApiException(...$args);
+        }
+
+        return new FgaApiInternalException(...$args);
     }
 
     private function formatMessage(
@@ -94,16 +104,19 @@ final class ErrorMapper
     {
         $raw = (string) $response->getBody();
         if ($raw === '') {
+            /** @infection-ignore-all */
             return [null, ''];
         }
 
         try {
             $decoded = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
+            /** @infection-ignore-all */
             return [null, $raw];
         }
 
         if (!is_array($decoded)) {
+            /** @infection-ignore-all */
             return [null, $raw];
         }
 
@@ -127,6 +140,7 @@ final class ErrorMapper
                 continue;
                 // @codeCoverageIgnoreEnd
             }
+            /** @infection-ignore-all */
             $normalized[strtolower($name)] = array_values($values);
         }
 

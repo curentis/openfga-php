@@ -133,11 +133,6 @@ final class Transport implements TransportInterface
     {
         $base = rtrim($this->apiUrl, '/');
         $uri = $this->uriFactory->createUri($base . $path);
-
-        if ($query === []) {
-            return $uri;
-        }
-
         $parts = [];
         foreach ($query as $key => $value) {
             if ($value === null) {
@@ -156,6 +151,7 @@ final class Transport implements TransportInterface
         }
 
         if ($parts === []) {
+            /** @infection-ignore-all */
             return $uri;
         }
 

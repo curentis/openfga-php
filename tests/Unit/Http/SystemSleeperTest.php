@@ -19,8 +19,15 @@ final class SystemSleeperTest extends TestCase
 
     public function testPositiveSleepDoesNotThrow(): void
     {
-        $sleeper = new SystemSleeper();
-        $sleeper->sleepMs(1);
-        self::expectNotToPerformAssertions();
+        $started = hrtime(true);
+        (new SystemSleeper())->sleepMs(20);
+        $elapsedMs = (hrtime(true) - $started) / 1_000_000;
+
+        self::assertGreaterThan(10, $elapsedMs);
+    }
+
+    public function testMicrosecondsUsesOneThousandPerMillisecond(): void
+    {
+        self::assertSame(2000, SystemSleeper::microseconds(2));
     }
 }

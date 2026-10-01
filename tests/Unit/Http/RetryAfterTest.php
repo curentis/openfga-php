@@ -25,7 +25,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRetryAfterSecondsReturnsMilliseconds(): void
     {
-        $response = new Response(429, ['Retry-After' => '3']);
+        $response = new Response(429, ['Retry-After' => ' 3 ']);
 
         self::assertSame(3000, RetryAfter::delayMs($response, $this->clock));
     }
@@ -83,7 +83,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRateLimitResetDeltaForm(): void
     {
-        $response = new Response(429, ['X-Rate-Limit-Reset' => '8']);
+        $response = new Response(429, ['X-Rate-Limit-Reset' => ' 8 ']);
 
         self::assertSame(8000, RetryAfter::delayMs($response, $this->clock));
     }
@@ -105,6 +105,7 @@ final class RetryAfterTest extends TestCase
     {
         yield 'retry-after garbage' => [['Retry-After' => 'not-a-date']];
         yield 'rate limit garbage' => [['X-RateLimit-Reset' => 'nope']];
+        yield 'rate limit trailing text' => [['X-RateLimit-Reset' => '12abc']];
         yield 'empty headers' => [[]];
     }
 

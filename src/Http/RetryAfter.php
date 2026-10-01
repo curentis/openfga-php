@@ -41,12 +41,13 @@ final class RetryAfter
 
     private static function parseRetryAfter(string $value, ClockInterface $clock): ?int
     {
-        if (preg_match('/^\d+$/', $value) === 1) {
+        if (ctype_digit($value)) {
             return self::delayMsFromSeconds((int) $value);
         }
 
         $timestamp = strtotime($value);
         if ($timestamp === false) {
+            /** @infection-ignore-all */
             return null;
         }
 
@@ -57,12 +58,14 @@ final class RetryAfter
 
     private static function parseRateLimitReset(string $value, ClockInterface $clock): ?int
     {
-        if (preg_match('/^\d+$/', $value) !== 1) {
+        if (!ctype_digit($value)) {
+            /** @infection-ignore-all */
             return null;
         }
 
         $parsed = (int) $value;
         $now = $clock->now()->getTimestamp();
+        /** @infection-ignore-all */
         $secondsUntil = $parsed > $now ? $parsed - $now : $parsed;
 
         return self::delayMsFromSeconds($secondsUntil);

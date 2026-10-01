@@ -255,6 +255,30 @@ final class RetryPolicyTest extends TestCase
         $this->policy(maxRetry: 16);
     }
 
+    public function testDoesNotRetryPastMaxRetryOnServerErrors(): void
+    {
+        $policy = $this->policy(maxRetry: 1);
+        $counter = new CallCounter();
+
+        try {
+            $policy->send(
+                function () use ($counter): Response {
+                    $counter->increment();
+                    if ($counter->count > 2) {
+                        throw new \RuntimeException('retried past the configured limit');
+                    }
+
+                    return new Response(503, [], '{}');
+                },
+                'GET',
+                '/stores',
+            );
+            self::fail('Expected exception');
+        } catch (FgaApiInternalException) {
+            self::assertSame(2, $counter->count);
+        }
+    }
+
     public function testNetworkErrorIsRetriedThenSurfacedAsFgaNetworkException(): void
     {
         $policy = $this->policy(maxRetry: 2);
