@@ -86,7 +86,7 @@ final class NdjsonStreamTest extends TestCase
 
     public function testTrimsWhitespaceAndSkipsBlankLinesInOneChunk(): void
     {
-        $payload = "\n" . ' {"a":1} ' . "\n\n" . ' {"b":2} ';
+        $payload = "\n" . "\x0b" . '{"a":1}' . "\n\n" . "\x0b" . '{"b":2}' . "\x0b";
         $lines = iterator_to_array(NdjsonStream::decode(new ChunkedStream($payload, strlen($payload))));
 
         self::assertSame([['a' => 1], ['b' => 2]], $lines);

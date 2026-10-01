@@ -6,6 +6,7 @@ namespace Curentis\OpenFga\Tests\Unit\Http;
 
 use Curentis\OpenFga\Http\RetryAfter;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\HeaderLineResponse;
 use DateTimeImmutable;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,7 +26,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRetryAfterSecondsReturnsMilliseconds(): void
     {
-        $response = new Response(429, ['Retry-After' => ' 3 ']);
+        $response = new HeaderLineResponse(new Response(429), 'Retry-After', "\x0b3\x0b");
 
         self::assertSame(3000, RetryAfter::delayMs($response, $this->clock));
     }
@@ -83,7 +84,7 @@ final class RetryAfterTest extends TestCase
 
     public function testRateLimitResetDeltaForm(): void
     {
-        $response = new Response(429, ['X-Rate-Limit-Reset' => ' 8 ']);
+        $response = new HeaderLineResponse(new Response(429), 'X-Rate-Limit-Reset', "\x0b8\x0b");
 
         self::assertSame(8000, RetryAfter::delayMs($response, $this->clock));
     }
