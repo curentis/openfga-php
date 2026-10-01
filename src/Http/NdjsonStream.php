@@ -45,7 +45,7 @@ final class NdjsonStream
      */
     private static function parseLine(string $line): array
     {
-        $decoded = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
         if (!is_array($decoded)) {
             throw new \JsonException('Expected JSON object in NDJSON line.');
         }

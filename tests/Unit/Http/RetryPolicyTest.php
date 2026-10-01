@@ -166,6 +166,7 @@ final class RetryPolicyTest extends TestCase
         yield '502' => [502];
         yield '503' => [503];
         yield '504' => [504];
+        yield '599' => [599];
     }
 
     #[DataProvider('retryableServerErrorProvider')]
@@ -220,6 +221,30 @@ final class RetryPolicyTest extends TestCase
         $this->expectExceptionMessage('minWaitMs');
 
         $this->policy(minWaitMs: 0);
+    }
+
+    public function testMaxRetryFifteenIsAccepted(): void
+    {
+        $policy = $this->policy(maxRetry: 15);
+        $response = $policy->send(
+            static fn(): Response => new Response(200, [], '{}'),
+            'GET',
+            '/healthz',
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    public function testHttp300IsNotTreatedAsSuccess(): void
+    {
+        $policy = $this->policy(maxRetry: 0);
+
+        $this->expectException(FgaApiException::class);
+        $policy->send(
+            static fn(): Response => new Response(300, [], '{}'),
+            'GET',
+            '/healthz',
+        );
     }
 
     public function testMaxRetryAboveFifteenThrowsValidationException(): void

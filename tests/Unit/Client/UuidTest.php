@@ -24,6 +24,13 @@ final class UuidTest extends TestCase
         self::assertIsString($outBytes);
         self::assertSame(0x4b, ord($outBytes[6]));
         self::assertSame(0xb6, ord($outBytes[8]));
+
+        $evenBits = hex2bin('ffeeddccbbac9a887766554433221001');
+        self::assertIsString($evenBits);
+        self::assertSame(
+            'ffeeddcc-bbac-4a88-b766-554433221001',
+            Uuid::formatV4Bytes($evenBits),
+        );
     }
 
     public function testFormatV4BytesRejectsWrongLength(): void

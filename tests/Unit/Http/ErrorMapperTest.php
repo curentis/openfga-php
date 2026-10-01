@@ -49,7 +49,7 @@ final class ErrorMapperTest extends TestCase
         $response = new Response($status, [], '{"code":"validation_error","message":"bad input"}');
         $exception = $this->mapper->map('POST', '/stores/abc/check', 'abc', $response);
 
-        self::assertInstanceOf($expectedClass, $exception);
+        self::assertSame($expectedClass, $exception::class);
         self::assertSame($status, $exception->statusCode);
         self::assertSame('POST', $exception->method);
         self::assertSame('/stores/abc/check', $exception->endpoint);
@@ -72,6 +72,7 @@ final class ErrorMapperTest extends TestCase
 
         self::assertSame('validation_error', $exception->apiErrorCode);
         self::assertSame('tuple key is invalid', $exception->apiErrorMessage);
+        self::assertStringContainsString('OpenFGA API request failed', $exception->getMessage());
         self::assertStringContainsString('validation_error', $exception->getMessage());
         self::assertStringContainsString('tuple key is invalid', $exception->getMessage());
     }
@@ -149,10 +150,12 @@ final class ErrorMapperTest extends TestCase
 
     public function testFgaQueryIdHeaderIsUsedAsRequestId(): void
     {
-        $response = new Response(500, ['Fga-Query-Id' => ['query-99']], '{"message":"err"}');
+        $response = new Response(500, ['Fga-Query-Id' => ['query-99'], 'X-Trace' => ['abc']], '{"message":"err"}');
         $exception = $this->mapper->map('POST', '/stores/s/check', 's', $response);
 
         self::assertSame('query-99', $exception->requestId);
+        self::assertSame(['query-99'], $exception->responseHeaders['fga-query-id'] ?? null);
+        self::assertSame(['abc'], $exception->responseHeaders['x-trace'] ?? null);
     }
 
     public function testExceptionMessageNeverContainsResponseBodySecrets(): void

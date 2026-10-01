@@ -38,6 +38,7 @@ final class JsonBodyTest extends TestCase
     public function testEncodeScalarArray(): void
     {
         self::assertSame('{"k":"v"}', JsonBody::encode(['k' => 'v']));
+        self::assertSame('{"path":"a/b"}', JsonBody::encode(['path' => 'a/b']));
     }
 
     public function testDecodeObject(): void

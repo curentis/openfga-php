@@ -46,6 +46,27 @@ final class RetryAfterTest extends TestCase
         self::assertNull(RetryAfter::delayMs($response, $this->clock));
     }
 
+    public function testRetryAfterAtMaxSecondsIsAccepted(): void
+    {
+        $response = new Response(429, ['Retry-After' => '1800']);
+
+        self::assertSame(1_800_000, RetryAfter::delayMs($response, $this->clock));
+    }
+
+    public function testRetryAfterZeroReturnsNull(): void
+    {
+        $response = new Response(429, ['Retry-After' => '0']);
+
+        self::assertNull(RetryAfter::delayMs($response, $this->clock));
+    }
+
+    public function testRetryAfterRejectsDigitsWithTrailingText(): void
+    {
+        $response = new Response(429, ['Retry-After' => '12abc']);
+
+        self::assertNull(RetryAfter::delayMs($response, $this->clock));
+    }
+
     public function testRetryAfterAboveMaxSecondsReturnsNull(): void
     {
         $response = new Response(429, ['Retry-After' => '1801']);

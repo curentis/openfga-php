@@ -246,6 +246,30 @@ final class TokenProviderTest extends TestCase
         self::assertSame('fresh', $provider->getAccessToken());
     }
 
+    public function testExpiresInOfOneSecondIsAccepted(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"short","expires_in":1}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        self::assertSame('short', $provider->getAccessToken());
+    }
+
+    public function testSingleCharacterCachedTokenIsAccepted(): void
+    {
+        $mock = new MockClient();
+        $cache = new SimpleArrayCache();
+        $cache->set(
+            'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience'),
+            'a|' . (self::NOW + 3600),
+            3600,
+        );
+
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+        self::assertSame('a', $provider->getAccessToken());
+        self::assertCount(0, $mock->getRequests());
+    }
+
     public function testIntegerExpiresInIsAccepted(): void
     {
         $mock = new MockClient();
