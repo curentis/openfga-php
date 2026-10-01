@@ -6,10 +6,10 @@ namespace Curentis\OpenFga\Tests\Unit\Client;
 
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\DefaultOpenFgaClientFactory;
-use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Client\OpenFgaClient;
 use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
 use Curentis\OpenFga\Client\OpenFgaClientInterface;
+use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;

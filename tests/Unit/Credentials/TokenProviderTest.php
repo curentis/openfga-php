@@ -145,13 +145,25 @@ final class TokenProviderTest extends TestCase
     public function testCacheTtlMatchesTokenExpiryBuffer(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], '{"access_token":"cached-ttl","expires_in":360}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-ttl","expires_in":3600}'));
         $cache = new SimpleArrayCache();
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
 
         $provider->getAccessToken();
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         self::assertIsString($cache->get($key));
+        self::assertSame(3600 - 300 - 59, $cache->lastTtlSecondsFor($key));
+    }
+
+    public function testCacheTtlFloorsAtOneSecond(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-floor","expires_in":360}'));
+        $cache = new SimpleArrayCache();
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+
+        $provider->getAccessToken();
+        $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         self::assertSame(1, $cache->lastTtlSecondsFor($key));
     }
 
@@ -171,6 +183,18 @@ final class TokenProviderTest extends TestCase
         $body = urldecode((string) $this->lastTokenRequest($mock)->getBody());
         self::assertStringContainsString('client_assertion_type=', $body);
         self::assertStringContainsString('client_assertion=', $body);
+        parse_str($body, $fields);
+        $assertion = $fields['client_assertion'] ?? null;
+        self::assertIsString($assertion);
+        $segments = explode('.', $assertion);
+        self::assertCount(3, $segments);
+        $payloadJson = base64_decode(strtr($segments[1], '-_', '+/'), true);
+        self::assertIsString($payloadJson);
+        $payload = json_decode($payloadJson, true);
+        self::assertIsArray($payload);
+        $jti = $payload['jti'] ?? null;
+        self::assertIsString($jti);
+        self::assertSame(32, strlen($jti));
     }
 
     public function testLoadsValidTokenFromPsrCache(): void
@@ -193,6 +217,7 @@ final class TokenProviderTest extends TestCase
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         $cache->set($key, 'broken');
         $cache->set($key . '_2', 'token|not-a-number');
+        $cache->set($key, 'tok|' . (self::NOW + 3600) . '|extra');
 
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
         self::assertSame('fresh', $provider->getAccessToken());

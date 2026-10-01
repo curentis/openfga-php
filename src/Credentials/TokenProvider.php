@@ -57,11 +57,7 @@ final class TokenProvider
         $accessToken = isset($payload['access_token']) && is_string($payload['access_token'])
             ? $payload['access_token']
             : '';
-        $expiresIn = isset($payload['expires_in']) && is_int($payload['expires_in'])
-            ? $payload['expires_in']
-            : (isset($payload['expires_in']) && is_numeric($payload['expires_in'])
-                ? (int) $payload['expires_in']
-                : 0);
+        $expiresIn = self::expiresInSeconds($payload['expires_in'] ?? null);
 
         if ($accessToken === '' || $expiresIn <= 0) {
             throw new FgaTokenExchangeException(
@@ -84,7 +80,7 @@ final class TokenProvider
         $expiresAt = $now + $expiresIn - 300 - $jitter;
         $token = new AccessToken($accessToken, $expiresAt);
         $this->memoryToken = $token;
-        $this->storeCache($token, $now + $expiresIn - 300 - $jitter);
+        $this->storeCache($token, $expiresAt);
 
         return $token;
     }
@@ -108,7 +104,7 @@ final class TokenProvider
             $fields['client_assertion'] = ClientAssertionJwt::sign(
                 $this->credentials,
                 $now,
-                bin2hex(random_bytes(16)),
+                self::assertionId(),
             );
         }
 
@@ -119,6 +115,23 @@ final class TokenProvider
             ->withBody($this->streamFactory->createStream($body));
 
         return $request;
+    }
+
+    private static function expiresInSeconds(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        return 0;
+    }
+
+    private static function assertionId(): string
+    {
+        return bin2hex(random_bytes(16));
     }
 
     private function cacheKey(): string
@@ -153,7 +166,7 @@ final class TokenProvider
         }
 
         $parts = explode('|', $cached, 2);
-        if (count($parts) !== 2 || !is_numeric($parts[1])) {
+        if (!array_key_exists(1, $parts) || !is_numeric($parts[1])) {
             return null;
         }
 
