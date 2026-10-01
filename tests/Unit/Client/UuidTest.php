@@ -11,19 +11,19 @@ final class UuidTest extends TestCase
 {
     public function testFormatV4BytesAppliesRfc4122VersionAndVariantBits(): void
     {
-        $bytes = hex2bin('ffeeddccbbaa9a887766554433221001');
+        $bytes = hex2bin('ffeeddccbbac9b887666554433221001');
         self::assertIsString($bytes);
 
         $formatted = Uuid::formatV4Bytes($bytes);
         self::assertSame(
-            'ffeeddcc-bbaa-4a88-b766-554433221001',
+            'ffeeddcc-bbac-4b88-b666-554433221001',
             $formatted,
         );
 
         $outBytes = hex2bin(str_replace('-', '', $formatted));
         self::assertIsString($outBytes);
-        self::assertSame(0x4a, ord($outBytes[6]));
-        self::assertSame(0xb7, ord($outBytes[8]));
+        self::assertSame(0x4b, ord($outBytes[6]));
+        self::assertSame(0xb6, ord($outBytes[8]));
     }
 
     public function testFormatV4BytesRejectsWrongLength(): void

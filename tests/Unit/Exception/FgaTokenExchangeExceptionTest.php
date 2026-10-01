@@ -28,6 +28,10 @@ final class FgaTokenExchangeExceptionTest extends TestCase
 
         self::assertSame('client-id-1', $e->clientId);
         $debug = $e->__debugInfo();
+        self::assertSame(401, $debug['statusCode']);
+        self::assertSame('https://issuer.example', $debug['issuer']);
+        self::assertSame('audience', $debug['audience']);
+        self::assertSame('client-id-1', $debug['clientId']);
         self::assertArrayNotHasKey('apiErrorMessage', $debug);
         self::assertStringNotContainsString('secret', strtolower((string) json_encode($debug)));
     }

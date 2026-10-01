@@ -58,7 +58,6 @@ final class ErrorMapper
                 $headers,
                 $retryAfterMs,
             ),
-            500, 501, 503 => new FgaApiInternalException(...$args),
             default => $statusCode >= 400 && $statusCode < 500
                 ? new FgaApiException(...$args)
                 : new FgaApiInternalException(...$args),

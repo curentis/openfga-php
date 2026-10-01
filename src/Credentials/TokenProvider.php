@@ -59,9 +59,9 @@ final class TokenProvider
             : '';
         $expiresIn = self::expiresInSeconds($payload['expires_in'] ?? null);
 
-        if ($accessToken === '' || $expiresIn <= 0) {
+        if ($accessToken === '' || $expiresIn < 1) {
             throw new FgaTokenExchangeException(
-                'Token endpoint returned an invalid token response.',
+                sprintf('Token endpoint returned an invalid token response (expires_in=%d).', $expiresIn),
                 $status,
                 null,
                 'missing access_token or expires_in',
@@ -165,12 +165,16 @@ final class TokenProvider
             return null;
         }
 
-        $parts = explode('|', $cached, 2);
-        if (!array_key_exists(1, $parts) || !is_numeric($parts[1])) {
+        $separatorAt = strpos($cached, '|');
+        if (!is_int($separatorAt) || $separatorAt < 1) {
+            return null;
+        }
+        $expiresAtRaw = substr($cached, $separatorAt + 1);
+        if (!is_numeric($expiresAtRaw)) {
             return null;
         }
 
-        $token = new AccessToken($parts[0], (int) $parts[1]);
+        $token = new AccessToken(substr($cached, 0, $separatorAt), (int) $expiresAtRaw);
         if ($token->isExpiredAt($now)) {
             return null;
         }

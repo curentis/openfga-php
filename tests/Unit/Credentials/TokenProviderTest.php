@@ -151,14 +151,15 @@ final class TokenProviderTest extends TestCase
 
         $provider->getAccessToken();
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
-        self::assertIsString($cache->get($key));
+        $stored = $cache->get($key);
+        self::assertSame('cached-ttl|' . (self::NOW + 3600 - 300 - 59), $stored);
         self::assertSame(3600 - 300 - 59, $cache->lastTtlSecondsFor($key));
     }
 
     public function testCacheTtlFloorsAtOneSecond(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], '{"access_token":"cached-floor","expires_in":360}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-floor","expires_in":359}'));
         $cache = new SimpleArrayCache();
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
 
@@ -262,6 +263,7 @@ final class TokenProviderTest extends TestCase
         $provider = $this->provider($mock, $this->clientCredentials());
 
         $this->expectException(FgaTokenExchangeException::class);
+        $this->expectExceptionMessage('expires_in=0');
         $provider->getAccessToken();
     }
 
@@ -272,6 +274,7 @@ final class TokenProviderTest extends TestCase
         $provider = $this->provider($mock, $this->clientCredentials());
 
         $this->expectException(FgaTokenExchangeException::class);
+        $this->expectExceptionMessage('expires_in=3600');
         $provider->getAccessToken();
     }
 

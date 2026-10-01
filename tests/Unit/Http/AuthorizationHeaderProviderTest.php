@@ -24,6 +24,15 @@ final class AuthorizationHeaderProviderTest extends TestCase
         self::assertNull($provider->authorizationHeader());
     }
 
+    public function testNoCredentialsIgnoresTokenResolver(): void
+    {
+        $provider = new AuthorizationHeaderProvider(
+            new NoCredentials(),
+            static fn(): string => 'should-not-be-used',
+        );
+        self::assertNull($provider->authorizationHeader());
+    }
+
     public function testTokenResolverUsedForOAuthCredentials(): void
     {
         $provider = new AuthorizationHeaderProvider(
