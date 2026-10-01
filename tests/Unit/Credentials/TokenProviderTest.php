@@ -217,8 +217,29 @@ final class TokenProviderTest extends TestCase
         $cache = new SimpleArrayCache();
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         $cache->set($key, 'broken');
-        $cache->set($key . '_2', 'token|not-a-number');
+
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+        self::assertSame('fresh', $provider->getAccessToken());
+    }
+
+    public function testIgnoresCacheEntriesWithExtraSegments(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"fresh","expires_in":3600}'));
+        $cache = new SimpleArrayCache();
+        $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         $cache->set($key, 'tok|' . (self::NOW + 3600) . '|extra');
+
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+        self::assertSame('fresh', $provider->getAccessToken());
+    }
+
+    public function testIgnoresCacheEntriesThatStartWithSeparator(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"fresh","expires_in":3600}'));
+        $cache = new SimpleArrayCache();
+        $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         $cache->set($key, '|' . (self::NOW + 3600));
 
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
