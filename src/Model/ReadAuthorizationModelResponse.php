@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ReadAuthorizationModelResponse implements \JsonSerializable
 {
@@ -23,7 +23,7 @@ final readonly class ReadAuthorizationModelResponse implements \JsonSerializable
                 $authorizationModel = null;
             } else {
                 if (!is_array($authorizationModel)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'authorization_model'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'authorization_model'));
                 }
                 $authorizationModel = AuthorizationModel::fromArray($authorizationModel, ($path === '' ? '' : $path . '.') . 'authorization_model');
             }

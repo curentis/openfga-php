@@ -12,44 +12,41 @@ use Curentis\OpenFga\Model\ListUsersBody;
 final class DefaultConsistencyBodyFactory implements ConsistencyBodyFactoryInterface
 {
     #[\Override]
-    public function expand(ExpandBody $body, ConsistencyPreference $consistency, ?string $authorizationModelId): ExpandBody
+    public function expand(ExpandBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ExpandBody
     {
-        $modelId = $body->authorizationModelId;
-        if ($modelId === null) {
-            $modelId = $authorizationModelId;
-        }
-
         return new ExpandBody(
             tupleKey: $body->tupleKey,
-            authorizationModelId: $modelId,
-            consistency: $consistency->value,
+            authorizationModelId: $body->authorizationModelId ?? $authorizationModelId,
+            consistency: $consistency !== null ? $consistency->value : $body->consistency,
             contextualTuples: $body->contextualTuples,
         );
     }
 
     #[\Override]
-    public function listObjects(ListObjectsBody $body, ConsistencyPreference $consistency): ListObjectsBody
+    public function listObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ListObjectsBody
     {
         return new ListObjectsBody(
-            user: $body->user,
             relation: $body->relation,
             type: $body->type,
-            contextualTuples: $body->contextualTuples,
+            user: $body->user,
+            authorizationModelId: $body->authorizationModelId ?? $authorizationModelId,
+            consistency: $consistency !== null ? $consistency->value : $body->consistency,
             context: $body->context,
-            consistency: $consistency->value,
+            contextualTuples: $body->contextualTuples,
         );
     }
 
     #[\Override]
-    public function listUsers(ListUsersBody $body, ConsistencyPreference $consistency): ListUsersBody
+    public function listUsers(ListUsersBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ListUsersBody
     {
         return new ListUsersBody(
             object: $body->object,
             relation: $body->relation,
             userFilters: $body->userFilters,
-            contextualTuples: $body->contextualTuples,
+            authorizationModelId: $body->authorizationModelId ?? $authorizationModelId,
+            consistency: $consistency !== null ? $consistency->value : $body->consistency,
             context: $body->context,
-            consistency: $consistency->value,
+            contextualTuples: $body->contextualTuples,
         );
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class TupleKey implements \JsonSerializable
 {
@@ -20,24 +20,24 @@ final readonly class TupleKey implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('object', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'object'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'object'));
         }
         if (!is_string($data['object'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'object'));
         }
         $object = $data['object'];
         if (!array_key_exists('relation', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         if (!is_string($data['relation'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         $relation = $data['relation'];
         if (!array_key_exists('user', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user'));
         }
         if (!is_string($data['user'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
         }
         $user = $data['user'];
         $condition = null;
@@ -47,7 +47,7 @@ final readonly class TupleKey implements \JsonSerializable
                 $condition = null;
             } else {
                 if (!is_array($condition)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'condition'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'condition'));
                 }
                 $condition = RelationshipCondition::fromArray($condition, ($path === '' ? '' : $path . '.') . 'condition');
             }

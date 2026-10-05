@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ExpandResponse implements \JsonSerializable
 {
@@ -23,7 +23,7 @@ final readonly class ExpandResponse implements \JsonSerializable
                 $tree = null;
             } else {
                 if (!is_array($tree)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tree'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tree'));
                 }
                 $tree = UsersetTree::fromArray($tree, ($path === '' ? '' : $path . '.') . 'tree');
             }

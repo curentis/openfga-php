@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ReadAuthorizationModelsResponse implements \JsonSerializable
 {
@@ -19,15 +19,15 @@ final readonly class ReadAuthorizationModelsResponse implements \JsonSerializabl
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('authorization_models', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_models'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_models'));
         }
         if (!is_array($data['authorization_models'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'authorization_models'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'authorization_models'));
         }
         $authorizationModelsList = [];
         foreach ($data['authorization_models'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $authorizationModelsList[] = AuthorizationModel::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
@@ -39,7 +39,7 @@ final readonly class ReadAuthorizationModelsResponse implements \JsonSerializabl
                 $continuationToken = null;
             } else {
                 if (!is_string($continuationToken)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
                 }
             }
         }

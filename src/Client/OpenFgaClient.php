@@ -17,6 +17,7 @@ use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Exception\FgaRequiredParamException;
+use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Http\NdjsonStream;
 use Curentis\OpenFga\Http\PathTemplate;
 use Curentis\OpenFga\Http\TransportInterface;
@@ -83,7 +84,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function listStores(?PaginationOptions $page = null, ?string $name = null, ?RequestOptions $options = null): ListStoresResponse
     {
-        return $this->api->listStores(
+        return $this->apiFor($options)->listStores(
             $page?->pageSize,
             $page?->continuationToken,
             $name,
@@ -94,7 +95,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function createStore(string $name, ?RequestOptions $options = null): CreateStoreResponse
     {
-        return $this->api->createStore(new CreateStoreRequest(name: $name), $this->headers($options));
+        return $this->apiFor($options)->createStore(new CreateStoreRequest(name: $name), $this->headers($options));
     }
 
     #[\Override]
@@ -102,19 +103,19 @@ final class OpenFgaClient implements OpenFgaClientInterface
     {
         $storeId = $this->requireStoreId($options);
 
-        return $this->api->getStore($storeId, $this->headers($options));
+        return $this->apiFor($options)->getStore($storeId, $this->headers($options));
     }
 
     #[\Override]
     public function deleteStore(?RequestOptions $options = null): void
     {
-        $this->api->deleteStore($this->requireStoreId($options), $this->headers($options));
+        $this->apiFor($options)->deleteStore($this->requireStoreId($options), $this->headers($options));
     }
 
     #[\Override]
     public function readAuthorizationModels(?PaginationOptions $page = null, ?RequestOptions $options = null): ReadAuthorizationModelsResponse
     {
-        return $this->api->readAuthorizationModels(
+        return $this->apiFor($options)->readAuthorizationModels(
             $this->requireStoreId($options),
             $page?->pageSize,
             $page?->continuationToken,
@@ -125,7 +126,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function writeAuthorizationModel(WriteAuthorizationModelBody $model, ?RequestOptions $options = null): WriteAuthorizationModelResponse
     {
-        return $this->api->writeAuthorizationModel($this->requireStoreId($options), $model, $this->headers($options));
+        return $this->apiFor($options)->writeAuthorizationModel($this->requireStoreId($options), $model, $this->headers($options));
     }
 
     #[\Override]
@@ -134,7 +135,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
         $storeId = $this->requireStoreId($options);
         $modelId = $this->requireAuthorizationModelId($options);
 
-        return $this->api->readAuthorizationModel($storeId, $modelId, $this->headers($options));
+        return $this->apiFor($options)->readAuthorizationModel($storeId, $modelId, $this->headers($options));
     }
 
     #[\Override]
@@ -145,10 +146,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             return null;
         }
 
-        $latestId = $list->authorizationModels[0]->id;
-        $storeId = $this->requireStoreId($options);
-
-        return $this->api->readAuthorizationModel($storeId, $latestId, $this->headers($options));
+        return new ReadAuthorizationModelResponse(authorizationModel: $list->authorizationModels[0]);
     }
 
     #[\Override]
@@ -165,7 +163,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             tupleKey: $body->tupleKey,
         );
 
-        return $this->api->read($this->requireStoreId($options), $body, $this->headers($options));
+        return $this->apiFor($options)->read($this->requireStoreId($options), $body, $this->headers($options));
     }
 
     #[\Override]
@@ -177,6 +175,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             $this->authorizationModelId($options),
             $this->resolveWriteOptions($write),
             $this->headers($options),
+            $options?->retry,
         );
     }
 
@@ -199,7 +198,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
         ?string $startTime = null,
         ?RequestOptions $options = null,
     ): ReadChangesResponse {
-        return $this->api->readChanges(
+        return $this->apiFor($options)->readChanges(
             $this->requireStoreId($options),
             $type,
             $page?->pageSize,
@@ -214,7 +213,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     {
         $body = ClientRequestMapper::toCheckBody($request, $this->authorizationModelId($options), $consistency);
 
-        return $this->api->check($this->requireStoreId($options), $body, $this->headers($options));
+        return $this->apiFor($options)->check($this->requireStoreId($options), $body, $this->headers($options));
     }
 
     #[\Override]
@@ -227,27 +226,28 @@ final class OpenFgaClient implements OpenFgaClientInterface
             $this->authorizationModelId($options),
             $consistency,
             $this->headers($options),
+            $options?->retry,
         );
     }
 
     #[\Override]
     public function listRelations(ClientListRelationsRequest $request, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientListRelationsResponse
     {
+        $relations = array_values(array_unique($request->relations));
         $checks = [];
-        foreach ($request->relations as $relation) {
+        foreach ($relations as $relation) {
             $checks[] = new ClientBatchCheckItem(
                 user: $request->user,
                 relation: $relation,
                 object: $request->object,
-                correlationId: $relation,
             );
         }
 
         $batchResponse = $this->batchCheck($checks, $batch, $consistency, $options);
         $allowed = [];
-        foreach ($request->relations as $index => $relation) {
+        foreach ($relations as $index => $relation) {
             $result = $batchResponse->results[$index] ?? null;
-            if ($result !== null && $result->allowed === true) {
+            if ($result !== null && $result->result->allowed === true) {
                 $allowed[] = $relation;
             }
         }
@@ -258,25 +258,25 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function expand(ExpandBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ExpandResponse
     {
-        if ($consistency !== null) {
-            $body = $this->consistencyBodyFactory->expand(
-                $body,
-                $consistency,
-                $this->authorizationModelId($options),
-            );
-        }
+        $body = $this->consistencyBodyFactory->expand(
+            $body,
+            $consistency,
+            $this->authorizationModelId($options),
+        );
 
-        return $this->api->expand($this->requireStoreId($options), $body, $this->headers($options));
+        return $this->apiFor($options)->expand($this->requireStoreId($options), $body, $this->headers($options));
     }
 
     #[\Override]
     public function listObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListObjectsResponse
     {
-        if ($consistency !== null) {
-            $body = $this->consistencyBodyFactory->listObjects($body, $consistency);
-        }
+        $body = $this->consistencyBodyFactory->listObjects(
+            $body,
+            $consistency,
+            $this->authorizationModelId($options),
+        );
 
-        return $this->api->listObjects($this->requireStoreId($options), $body, $this->headers($options));
+        return $this->apiFor($options)->listObjects($this->requireStoreId($options), $body, $this->headers($options));
     }
 
     /**
@@ -285,12 +285,16 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function streamedListObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): \Generator
     {
-        if ($consistency !== null) {
-            $body = $this->consistencyBodyFactory->listObjects($body, $consistency);
-        }
+        $body = $this->consistencyBodyFactory->listObjects(
+            $body,
+            $consistency,
+            $this->authorizationModelId($options),
+        );
 
-        $response = $this->api->streamedListObjects($this->requireStoreId($options), $body, $this->headers($options));
-        foreach (NdjsonStream::decode($response->getBody()) as $line) {
+        $storeId = $this->requireStoreId($options);
+        $response = $this->apiFor($options)->streamedListObjects($storeId, $body, $this->headers($options));
+        $endpoint = '/stores/' . rawurlencode($storeId) . '/streamed-list-objects';
+        foreach (NdjsonStream::decode($response->getBody(), 8192, 'POST', $endpoint, $storeId) as $line) {
             /** @var mixed $maybeResult */
             $maybeResult = $line['result'] ?? null;
             if (is_array($maybeResult) && isset($maybeResult['object']) && is_string($maybeResult['object'])) {
@@ -302,17 +306,19 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function listUsers(ListUsersBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListUsersResponse
     {
-        if ($consistency !== null) {
-            $body = $this->consistencyBodyFactory->listUsers($body, $consistency);
-        }
+        $body = $this->consistencyBodyFactory->listUsers(
+            $body,
+            $consistency,
+            $this->authorizationModelId($options),
+        );
 
-        return $this->api->listUsers($this->requireStoreId($options), $body, $this->headers($options));
+        return $this->apiFor($options)->listUsers($this->requireStoreId($options), $body, $this->headers($options));
     }
 
     #[\Override]
     public function readAssertions(?RequestOptions $options = null): ReadAssertionsResponse
     {
-        return $this->api->readAssertions(
+        return $this->apiFor($options)->readAssertions(
             $this->requireStoreId($options),
             $this->requireAuthorizationModelId($options),
             $this->headers($options),
@@ -322,7 +328,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function writeAssertions(array $assertions, ?RequestOptions $options = null): void
     {
-        $this->api->writeAssertions(
+        $this->apiFor($options)->writeAssertions(
             $this->requireStoreId($options),
             $this->requireAuthorizationModelId($options),
             new WriteAssertionsBody(assertions: $assertions),
@@ -343,8 +349,8 @@ final class OpenFgaClient implements OpenFgaClientInterface
         mixed $body = null,
         ?RequestOptions $options = null,
     ): ResponseInterface {
-        $normalizedPathParams = $this->normalizeScalarParams($pathParams);
-        $normalizedQuery = $this->normalizeScalarParams($query);
+        $normalizedPathParams = $this->normalizePathParams($pathParams);
+        $normalizedQuery = $this->normalizeQueryParams($query);
         $expandedPath = PathTemplate::expand($path, $normalizedPathParams);
 
         return $this->transport->send(
@@ -355,6 +361,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             $body,
             $this->headers($options),
             $this->storeId($options),
+            $options?->retry,
         );
     }
 
@@ -373,6 +380,16 @@ final class OpenFgaClient implements OpenFgaClientInterface
         $response = $this->executeApiRequest($method, $path, $pathParams, $query, $body, $options);
 
         yield from NdjsonStream::decode($response->getBody());
+    }
+
+    private function apiFor(?RequestOptions $options): OpenFgaApiInterface
+    {
+        $retry = $options?->retry;
+        if ($retry === null) {
+            return $this->api;
+        }
+
+        return $this->api->withCallOptions($retry);
     }
 
     private function requireStoreId(?RequestOptions $options): string
@@ -419,9 +436,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     private function headers(?RequestOptions $options): array
     {
         if ($options === null) {
-            // @codeCoverageIgnoreStart
             return [];
-            // @codeCoverageIgnoreEnd
         }
 
         return $options->headers;
@@ -458,21 +473,53 @@ final class OpenFgaClient implements OpenFgaClientInterface
      * @param array<array-key, mixed> $params
      *
      * @return array<string, bool|float|int|string|null>
-     *
-     * @psalm-suppress MixedAssignment
      */
-    private function normalizeScalarParams(array $params): array
+    private function normalizePathParams(array $params): array
     {
         $normalized = [];
         foreach ($params as $key => $value) {
             if (!is_string($key)) {
-                // @codeCoverageIgnoreStart
+                throw new FgaValidationException('Parameter names must be strings.');
+            }
+            if (!is_scalar($value) && $value !== null) {
+                throw new FgaValidationException(sprintf('Parameter "%s" must be a scalar.', $key));
+            }
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<array-key, mixed> $params
+     *
+     * @return array<string, bool|float|int|string|list<bool|float|int|string|null>|null>
+     *
+     * @psalm-suppress MixedAssignment
+     */
+    private function normalizeQueryParams(array $params): array
+    {
+        $normalized = [];
+        foreach ($params as $key => $value) {
+            if (!is_string($key)) {
+                throw new FgaValidationException('Parameter names must be strings.');
+            }
+            if (is_array($value)) {
+                $items = [];
+                foreach ($value as $item) {
+                    if (!is_scalar($item) && $item !== null) {
+                        throw new FgaValidationException(sprintf('Parameter "%s" must be a list of scalars.', $key));
+                    }
+                    $items[] = $item;
+                }
+                $normalized[$key] = $items;
+
                 continue;
-                // @codeCoverageIgnoreEnd
             }
-            if (is_scalar($value) || $value === null) {
-                $normalized[$key] = $value;
+            if (!is_scalar($value) && $value !== null) {
+                throw new FgaValidationException(sprintf('Parameter "%s" must be a scalar.', $key));
             }
+            $normalized[$key] = $value;
         }
 
         return $normalized;

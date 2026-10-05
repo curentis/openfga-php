@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Tests\Unit\Client;
 
+use Curentis\OpenFga\Client\Options\ConflictOptions;
+use Curentis\OpenFga\Client\Options\OnDuplicateWrites;
+use Curentis\OpenFga\Client\Options\OnMissingDeletes;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Options\TransactionOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Client\WriteRunner;
+use Curentis\OpenFga\Exception\FgaApiInternalException;
+use Curentis\OpenFga\Exception\FgaPartialWriteException;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Response;
@@ -73,8 +79,8 @@ final class WriteRunnerTest extends MockTransportTestCase
     public function testNonTransactionalFailureChunkWithWritesAndDeletesRecordsAllFailures(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
-        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $mock->addResponse(new Response(400, [], '{"message":"fail","code":"validation_error"}'));
+        $mock->addResponse(new Response(400, [], '{"message":"fail","code":"validation_error"}'));
         $runner = new WriteRunner($this->openFgaApi($mock));
 
         $response = $runner->run(
@@ -103,6 +109,7 @@ final class WriteRunnerTest extends MockTransportTestCase
         $mock->addResponse(new Response(200, [], '{}'));
         $runner = new WriteRunner($this->openFgaApi($mock));
 
+        $this->expectException(\Curentis\OpenFga\Exception\FgaValidationException::class);
         $runner->run(
             '01ARZ3NDEKTSV4RRFFQ69G5FAV',
             new ClientWriteRequest(),
@@ -110,14 +117,12 @@ final class WriteRunnerTest extends MockTransportTestCase
             new WriteOptions(transaction: new TransactionOptions(disable: true)),
             [],
         );
-
-        self::assertCount(1, $mock->getRequests());
     }
 
     public function testNonTransactionalDeleteFailureRecordsTupleError(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $mock->addResponse(new Response(400, [], '{"message":"fail","code":"validation_error"}'));
         $runner = new WriteRunner($this->openFgaApi($mock));
 
         $response = $runner->run(
@@ -159,7 +164,7 @@ final class WriteRunnerTest extends MockTransportTestCase
     public function testNonTransactionalChunkWithTwoDeletesRecordsBothFailures(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $mock->addResponse(new Response(400, [], '{"message":"fail","code":"validation_error"}'));
         $runner = new WriteRunner($this->openFgaApi($mock));
 
         $response = $runner->run(
@@ -184,7 +189,7 @@ final class WriteRunnerTest extends MockTransportTestCase
     {
         $mock = new MockClient();
         $mock->addResponse(new Response(200, [], '{}'));
-        $mock->addResponse(new Response(500, [], '{"message":"fail","code":"internal_error"}'));
+        $mock->addResponse(new Response(400, [], '{"message":"fail","code":"validation_error"}'));
         $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{}'));
         $mock->addResponse(new Response(200, [], '{}'));
@@ -217,5 +222,93 @@ final class WriteRunnerTest extends MockTransportTestCase
         self::assertCount(5, $mock->getRequests());
         $failures = array_filter($response->tupleResults, static fn($r): bool => !$r->success);
         self::assertCount(1, $failures);
+    }
+
+    public function testNonTransactionalWriteStopsOnServerError(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $mock->addResponse(new Response(500, [], '{"message":"boom","code":"internal_error"}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        try {
+            $runner->run(
+                '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                new ClientWriteRequest(writes: [
+                    new ClientTupleKey('user:a', 'viewer', 'doc:1'),
+                    new ClientTupleKey('user:b', 'viewer', 'doc:2'),
+                ]),
+                null,
+                new WriteOptions(transaction: new TransactionOptions(disable: true), maxPerChunk: 1),
+                [],
+            );
+            self::fail('Expected a partial write exception');
+        } catch (FgaPartialWriteException $exception) {
+            self::assertSame(0, $exception->getCode());
+            self::assertCount(1, $exception->completed);
+            self::assertTrue($exception->completed[0]->success);
+            self::assertInstanceOf(FgaApiInternalException::class, $exception->getPrevious());
+            self::assertCount(2, $mock->getRequests());
+        }
+    }
+
+    public function testNonTransactionalNotFoundIsRecordedAsATupleFailure(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(404, [], '{"message":"missing","code":"undefined_endpoint"}'));
+        $runner = new WriteRunner($this->openFgaApi($mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]),
+            null,
+            new WriteOptions(transaction: new TransactionOptions(disable: true), maxPerChunk: 1),
+            [],
+        );
+
+        self::assertCount(1, $response->tupleResults);
+        self::assertFalse($response->tupleResults[0]->success);
+    }
+
+    public function testIdempotentWriteRetriesServerErrors(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(500, [], '{"message":"boom","code":"internal_error"}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $runner = new WriteRunner($this->retryingApi($mock));
+
+        $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(writes: [new ClientTupleKey('user:a', 'viewer', 'doc:1')]),
+            null,
+            new WriteOptions(conflict: new ConflictOptions(
+                onDuplicateWrites: OnDuplicateWrites::Ignore,
+            )),
+            [],
+            new RetryOptions(maxRetry: 1, minWaitMs: 1),
+        );
+
+        self::assertCount(2, $mock->getRequests());
+    }
+
+    public function testDeleteIgnoreMakesTheWriteIdempotent(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $runner = new WriteRunner($this->retryingApi($mock));
+
+        $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            new ClientWriteRequest(deletes: [new ClientTupleKeyWithoutCondition('user:a', 'viewer', 'doc:1')]),
+            null,
+            new WriteOptions(conflict: new ConflictOptions(
+                onMissingDeletes: OnMissingDeletes::Ignore,
+            )),
+            [],
+            new RetryOptions(maxRetry: 1, minWaitMs: 1),
+        );
+
+        self::assertCount(2, $mock->getRequests());
     }
 }

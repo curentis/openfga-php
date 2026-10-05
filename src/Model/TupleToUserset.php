@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class TupleToUserset implements \JsonSerializable
 {
@@ -18,17 +18,17 @@ final readonly class TupleToUserset implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('computedUserset', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'computedUserset'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'computedUserset'));
         }
         if (!is_array($data['computedUserset'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
         }
         $computedUserset = ObjectRelation::fromArray($data['computedUserset'], ($path === '' ? '' : $path . '.') . 'computedUserset');
         if (!array_key_exists('tupleset', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tupleset'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tupleset'));
         }
         if (!is_array($data['tupleset'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleset'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleset'));
         }
         $tupleset = ObjectRelation::fromArray($data['tupleset'], ($path === '' ? '' : $path . '.') . 'tupleset');
         return new self(computedUserset: $computedUserset, tupleset: $tupleset);

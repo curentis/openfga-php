@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class CreateStoreRequest implements \JsonSerializable
 {
@@ -17,10 +17,10 @@ final readonly class CreateStoreRequest implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('name', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
         }
         if (!is_string($data['name'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
         }
         $name = $data['name'];
         return new self(name: $name);

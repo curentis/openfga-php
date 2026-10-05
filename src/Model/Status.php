@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Status implements \JsonSerializable
 {
@@ -26,7 +26,7 @@ final readonly class Status implements \JsonSerializable
                 $code = null;
             } else {
                 if (!is_integer($code)) {
-                    throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'code'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'code'));
                 }
             }
         }
@@ -37,12 +37,12 @@ final readonly class Status implements \JsonSerializable
                 $details = null;
             } else {
                 if (!is_array($details)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'details'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'details'));
                 }
                 $detailsList = [];
                 foreach ($details as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $detailsList[] = Any::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }
@@ -56,7 +56,7 @@ final readonly class Status implements \JsonSerializable
                 $message = null;
             } else {
                 if (!is_string($message)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
                 }
             }
         }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class TupleChange implements \JsonSerializable
 {
     public function __construct(
-        public TupleOperation $operation,
+        public TupleOperation|string $operation,
         public \DateTimeImmutable $timestamp,
         public TupleKey $tupleKey
     ) {}
@@ -19,28 +19,25 @@ final readonly class TupleChange implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('operation', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'operation'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'operation'));
         }
         if (!is_string($data['operation'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'operation'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'operation'));
         }
-        try {
-            $operation = TupleOperation::from($data['operation']);
-        } catch (\ValueError) {
-            throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'operation'));
-        }
+        $parsedoperation = TupleOperation::tryFrom($data['operation']);
+        $operation = $parsedoperation instanceof \BackedEnum ? $parsedoperation : $data['operation'];
         if (!array_key_exists('timestamp', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'timestamp'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'timestamp'));
         }
         if (!is_string($data['timestamp'])) {
-            throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'timestamp'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'timestamp'));
         }
         $timestamp = new \DateTimeImmutable($data['timestamp']);
         if (!array_key_exists('tuple_key', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         if (!is_array($data['tuple_key'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         $tupleKey = TupleKey::fromArray($data['tuple_key'], ($path === '' ? '' : $path . '.') . 'tuple_key');
         return new self(operation: $operation, timestamp: $timestamp, tupleKey: $tupleKey);
@@ -49,7 +46,7 @@ final readonly class TupleChange implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['operation' => $this->operation->value, 'timestamp' => $this->timestamp->format(\DateTimeInterface::ATOM), 'tuple_key' => $this->tupleKey->toArray()], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['operation' => $this->operation instanceof \BackedEnum ? $this->operation->value : $this->operation, 'timestamp' => $this->timestamp->format(\DateTimeInterface::ATOM), 'tuple_key' => $this->tupleKey->toArray()], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

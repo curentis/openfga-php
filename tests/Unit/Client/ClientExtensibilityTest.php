@@ -12,19 +12,16 @@ use Curentis\OpenFga\Client\ConsistencyBodyFactoryInterface;
 use Curentis\OpenFga\Client\DefaultClientComponentFactory;
 use Curentis\OpenFga\Client\DefaultConsistencyBodyFactory;
 use Curentis\OpenFga\Client\OpenFgaClientFactory;
-use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
-use Curentis\OpenFga\Client\OpenFgaClientInterface;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Client\WriteRunnerInterface;
+use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Response;
-use Psr\Clock\ClockInterface;
 use Psr\Http\Message\RequestInterface;
-use Random\Randomizer;
 
 final class ClientExtensibilityTest extends MockTransportTestCase
 {
@@ -34,6 +31,7 @@ final class ClientExtensibilityTest extends MockTransportTestCase
         $body = $factory->listObjects(
             new \Curentis\OpenFga\Model\ListObjectsBody(relation: 'viewer', type: 'document', user: 'user:u'),
             \Curentis\OpenFga\Model\ConsistencyPreference::HIGHER_CONSISTENCY,
+            null,
         );
 
         self::assertSame('HIGHER_CONSISTENCY', $body->consistency);
@@ -60,22 +58,6 @@ final class ClientExtensibilityTest extends MockTransportTestCase
         self::assertInstanceOf(RequestInterface::class, $request);
         self::assertSame('custom-write', $request->getHeaderLine('X-Custom-Write'));
     }
-
-    public function testClientFactoryOnConfigurationIsUsed(): void
-    {
-        $mock = new MockClient();
-        $stub = $this->openFgaClient($mock);
-
-        $client = OpenFgaClientFactory::create(
-            new ClientConfiguration(
-                apiUrl: 'http://localhost:8080',
-                httpClient: $mock,
-                clientFactory: new StubOpenFgaClientFactory($stub),
-            ),
-        );
-
-        self::assertSame($stub, $client);
-    }
 }
 
 final class TaggedWriteRunnerComponentFactory implements ClientComponentFactoryInterface
@@ -88,9 +70,9 @@ final class TaggedWriteRunnerComponentFactory implements ClientComponentFactoryI
     }
 
     #[\Override]
-    public function createBatchCheckRunner(OpenFgaApiInterface $api): BatchCheckRunnerInterface
+    public function createBatchCheckRunner(OpenFgaApiInterface $api, TransportInterface $transport): BatchCheckRunnerInterface
     {
-        return $this->defaults->createBatchCheckRunner($api);
+        return $this->defaults->createBatchCheckRunner($api, $transport);
     }
 
     #[\Override]
@@ -117,6 +99,7 @@ final class TaggedWriteRunner implements WriteRunnerInterface
         ?string $authorizationModelId,
         WriteOptions $writeOptions,
         array $headers,
+        ?\Curentis\OpenFga\Client\Options\RetryOptions $retry = null,
     ): ClientWriteResponse {
         $body = \Curentis\OpenFga\Client\ClientRequestMapper::toWriteBody($request, $authorizationModelId, $writeOptions->conflict);
         $response = $this->api->write($storeId, $body, $headers + [
@@ -125,19 +108,5 @@ final class TaggedWriteRunner implements WriteRunnerInterface
         ]);
 
         return new ClientWriteResponse($response);
-    }
-}
-
-final class StubOpenFgaClientFactory implements OpenFgaClientFactoryInterface
-{
-    public function __construct(private readonly OpenFgaClientInterface $client) {}
-
-    #[\Override]
-    public function create(
-        ClientConfiguration $configuration,
-        ?ClockInterface $clock = null,
-        ?Randomizer $randomizer = null,
-    ): OpenFgaClientInterface {
-        return $this->client;
     }
 }

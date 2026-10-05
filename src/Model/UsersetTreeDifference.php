@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class UsersetTreeDifference implements \JsonSerializable
 {
@@ -18,17 +18,17 @@ final readonly class UsersetTreeDifference implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('base', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'base'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'base'));
         }
         if (!is_array($data['base'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'base'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'base'));
         }
         $base = Node::fromArray($data['base'], ($path === '' ? '' : $path . '.') . 'base');
         if (!array_key_exists('subtract', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'subtract'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'subtract'));
         }
         if (!is_array($data['subtract'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'subtract'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'subtract'));
         }
         $subtract = Node::fromArray($data['subtract'], ($path === '' ? '' : $path . '.') . 'subtract');
         return new self(base: $base, subtract: $subtract);

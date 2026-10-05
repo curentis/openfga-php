@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Node implements \JsonSerializable
 {
@@ -21,10 +21,10 @@ final readonly class Node implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('name', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
         }
         if (!is_string($data['name'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
         }
         $name = $data['name'];
         $difference = null;
@@ -34,7 +34,7 @@ final readonly class Node implements \JsonSerializable
                 $difference = null;
             } else {
                 if (!is_array($difference)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
                 }
                 $difference = UsersetTreeDifference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
             }
@@ -46,7 +46,7 @@ final readonly class Node implements \JsonSerializable
                 $intersection = null;
             } else {
                 if (!is_array($intersection)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
                 }
                 $intersection = Nodes::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
             }
@@ -58,7 +58,7 @@ final readonly class Node implements \JsonSerializable
                 $leaf = null;
             } else {
                 if (!is_array($leaf)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'leaf'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'leaf'));
                 }
                 $leaf = Leaf::fromArray($leaf, ($path === '' ? '' : $path . '.') . 'leaf');
             }
@@ -70,7 +70,7 @@ final readonly class Node implements \JsonSerializable
                 $union = null;
             } else {
                 if (!is_array($union)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
                 }
                 $union = Nodes::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
             }

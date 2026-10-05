@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ListObjectsResponse implements \JsonSerializable
 {
@@ -18,15 +18,15 @@ final readonly class ListObjectsResponse implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('objects', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'objects'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'objects'));
         }
         if (!is_array($data['objects'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'objects'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'objects'));
         }
         $objectsList = [];
         foreach ($data['objects'] as $idx => $item) {
             if (!is_string($item)) {
-                throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . $idx));
             }
             $objectsList[] = $item;
         }

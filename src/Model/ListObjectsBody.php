@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ListObjectsBody implements \JsonSerializable
 {
@@ -24,24 +24,24 @@ final readonly class ListObjectsBody implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('relation', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         if (!is_string($data['relation'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         $relation = $data['relation'];
         if (!array_key_exists('type', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type'));
         }
         if (!is_string($data['type'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'type'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'type'));
         }
         $type = $data['type'];
         if (!array_key_exists('user', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user'));
         }
         if (!is_string($data['user'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'user'));
         }
         $user = $data['user'];
         $authorizationModelId = null;
@@ -51,7 +51,7 @@ final readonly class ListObjectsBody implements \JsonSerializable
                 $authorizationModelId = null;
             } else {
                 if (!is_string($authorizationModelId)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
                 }
             }
         }
@@ -62,14 +62,14 @@ final readonly class ListObjectsBody implements \JsonSerializable
                 $consistency = null;
             } else {
                 if (!is_string($consistency)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
                 if (!in_array($consistency, [
                     0 => 'UNSPECIFIED',
                     1 => 'MINIMIZE_LATENCY',
                     2 => 'HIGHER_CONSISTENCY',
                 ], true)) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
             }
         }
@@ -80,7 +80,7 @@ final readonly class ListObjectsBody implements \JsonSerializable
                 $context = null;
             } else {
                 if (!is_array($context)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
                 }
             }
         }
@@ -91,7 +91,7 @@ final readonly class ListObjectsBody implements \JsonSerializable
                 $contextualTuples = null;
             } else {
                 if (!is_array($contextualTuples)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
                 $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
             }

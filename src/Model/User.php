@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class User implements \JsonSerializable
 {
@@ -25,7 +25,7 @@ final readonly class User implements \JsonSerializable
                 $object = null;
             } else {
                 if (!is_array($object)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
                 }
                 $object = FgaObject::fromArray($object, ($path === '' ? '' : $path . '.') . 'object');
             }
@@ -37,7 +37,7 @@ final readonly class User implements \JsonSerializable
                 $userset = null;
             } else {
                 if (!is_array($userset)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'userset'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'userset'));
                 }
                 $userset = UsersetUser::fromArray($userset, ($path === '' ? '' : $path . '.') . 'userset');
             }
@@ -49,7 +49,7 @@ final readonly class User implements \JsonSerializable
                 $wildcard = null;
             } else {
                 if (!is_array($wildcard)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'wildcard'));
                 }
                 $wildcard = TypedWildcard::fromArray($wildcard, ($path === '' ? '' : $path . '.') . 'wildcard');
             }

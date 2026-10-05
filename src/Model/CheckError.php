@@ -5,13 +5,13 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class CheckError implements \JsonSerializable
 {
     public function __construct(
-        public ?ErrorCode $inputError = null,
-        public ?InternalErrorCode $internalError = null,
+        public ErrorCode|string|null $inputError = null,
+        public InternalErrorCode|string|null $internalError = null,
         public ?string $message = null
     ) {}
 
@@ -25,13 +25,10 @@ final readonly class CheckError implements \JsonSerializable
                 $inputError = null;
             } else {
                 if (!is_string($inputError)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'input_error'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'input_error'));
                 }
-                try {
-                    $inputError = ErrorCode::from($inputError);
-                } catch (\ValueError) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'input_error'));
-                }
+                $parsedinputError = ErrorCode::tryFrom($inputError);
+                $inputError = $parsedinputError instanceof \BackedEnum ? $parsedinputError : $inputError;
             }
         }
         $internalError = null;
@@ -41,13 +38,10 @@ final readonly class CheckError implements \JsonSerializable
                 $internalError = null;
             } else {
                 if (!is_string($internalError)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'internal_error'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'internal_error'));
                 }
-                try {
-                    $internalError = InternalErrorCode::from($internalError);
-                } catch (\ValueError) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'internal_error'));
-                }
+                $parsedinternalError = InternalErrorCode::tryFrom($internalError);
+                $internalError = $parsedinternalError instanceof \BackedEnum ? $parsedinternalError : $internalError;
             }
         }
         $message = null;
@@ -57,7 +51,7 @@ final readonly class CheckError implements \JsonSerializable
                 $message = null;
             } else {
                 if (!is_string($message)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
                 }
             }
         }
@@ -67,7 +61,7 @@ final readonly class CheckError implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['input_error' => $this->inputError?->value, 'internal_error' => $this->internalError?->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['input_error' => $this->inputError instanceof \BackedEnum ? $this->inputError->value : $this->inputError, 'internal_error' => $this->internalError instanceof \BackedEnum ? $this->internalError->value : $this->internalError, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

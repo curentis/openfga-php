@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Http;
 
+/**
+ * @internal
+ */
 final class QueryParameterFilter
 {
     /**

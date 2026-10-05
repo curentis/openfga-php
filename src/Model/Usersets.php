@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Usersets implements \JsonSerializable
 {
@@ -18,15 +18,15 @@ final readonly class Usersets implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('child', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'child'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'child'));
         }
         if (!is_array($data['child'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'child'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'child'));
         }
         $childList = [];
         foreach ($data['child'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $childList[] = Userset::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }

@@ -8,6 +8,7 @@ use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\PaginationOptions;
 use Curentis\OpenFga\Client\Options\RequestOptions;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
@@ -166,7 +167,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $batch = $client->batchCheck([
             new ClientBatchCheckItem('user:a', 'viewer', 'doc:1', correlationId: 'c1'),
         ]);
-        self::assertTrue($batch->results[0]->allowed);
+        self::assertTrue($batch->results[0]->result->allowed);
     }
 
     public function testExpandWithConsistencyUsesConfigurationAuthorizationModelId(): void
@@ -320,7 +321,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $response = $client->executeApiRequest(
             'GET',
             '/stores/{store_id}/custom',
-            ['store_id' => self::STORE_ID, 0 => 'skip'],
+            ['store_id' => self::STORE_ID],
             ['page_size' => 5, 'limit' => 10, 'nullable' => null, 'bad' => ['array']],
             null,
             new RequestOptions(headers: ['X-Req' => 'yes']),
@@ -334,8 +335,8 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertSame('5', $parsed['page_size'] ?? null);
         self::assertSame('10', $parsed['limit'] ?? null);
         self::assertArrayNotHasKey('nullable', $parsed);
-        self::assertArrayNotHasKey('bad', $parsed);
-        self::assertCount(2, $parsed);
+        self::assertSame('array', $parsed['bad'] ?? null);
+        self::assertCount(3, $parsed);
 
         $lines = iterator_to_array($client->executeStreamedApiRequest(
             'GET',
@@ -357,7 +358,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
 
     public function testReadAuthorizationModelUsesRequestOptionsAuthorizationModelId(): void
     {
-        $overrideModelId = '01JBBBBBBBBBBBBBBBBBBBBBBBB';
+        $overrideModelId = '01JBBBBBBBBBBBBBBBBBBBBBBB';
         $mock = new MockClient();
         $mock->addResponse(new Response(200, [], json_encode([
             'authorization_model' => [
@@ -386,15 +387,15 @@ final class OpenFgaClientTest extends MockTransportTestCase
             new ClientBatchCheckItem('user:a', 'viewer', 'doc:1', correlationId: 'c1'),
         ], null);
 
-        self::assertTrue($batch->results[0]->allowed);
+        self::assertTrue($batch->results[0]->result->allowed);
         self::assertCount(1, $mock->getRequests());
     }
 
     public function testListRelationsWithNullBatchOptionsUsesDefaults(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], '{"result":{"viewer":{"allowed":true}}}'));
-        $client = $this->openFgaClient($mock);
+        $http = new RelationBatchClient(['viewer' => true]);
+        $client = $this->openFgaClientFromHttp($http);
 
         $response = $client->listRelations(
             new \Curentis\OpenFga\Client\Request\ClientListRelationsRequest('user:a', 'doc:1', ['viewer']),
@@ -440,7 +441,7 @@ final class OpenFgaClientTest extends MockTransportTestCase
             new BatchCheckOptions(maxBatchSize: 10),
         );
 
-        self::assertTrue($batch->results[0]->allowed);
+        self::assertTrue($batch->results[0]->result->allowed);
     }
 
     public function testNullStoreIdInRequestOptionsFallsBackToConfiguration(): void
@@ -511,6 +512,60 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $this->expectException(FgaRequiredParamException::class);
         $this->expectExceptionMessage('authorizationModelId');
         $client->readAuthorizationModel();
+    }
+
+    public function testExecuteApiRequestRejectsNonScalarParameters(): void
+    {
+        $client = $this->openFgaClient(new MockClient());
+
+        try {
+            $client->executeApiRequest('GET', '/stores/{store_id}', ['store_id' => ['nested']]);
+            self::fail('Expected a path parameter error');
+        } catch (FgaValidationException $exception) {
+            self::assertStringContainsString('scalar', $exception->getMessage());
+        }
+
+        try {
+            $client->executeApiRequest('GET', '/stores', [], ['bad' => [new \stdClass()]]);
+            self::fail('Expected a query parameter error');
+        } catch (FgaValidationException $exception) {
+            self::assertStringContainsString('list of scalars', $exception->getMessage());
+        }
+
+        try {
+            $client->executeApiRequest('GET', '/stores', [], ['bad' => new \stdClass()]);
+            self::fail('Expected a scalar query parameter error');
+        } catch (FgaValidationException $exception) {
+            self::assertStringContainsString('must be a scalar', $exception->getMessage());
+        }
+
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('Parameter names must be strings');
+        $client->executeApiRequest('GET', '/stores', [0 => 'skip']);
+    }
+
+    public function testExecuteApiRequestRejectsNonStringQueryNames(): void
+    {
+        $client = $this->openFgaClient(new MockClient());
+
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('Parameter names must be strings');
+        $client->executeApiRequest('GET', '/stores', [], [0 => 'skip']);
+    }
+
+    public function testRequestOptionsRetryIsApplied(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $client = $this->openFgaClient($mock);
+
+        self::assertSame([], $client->listStores(options: new RequestOptions(retry: new RetryOptions(maxRetry: 0)))->stores);
+    }
+
+    public function testRequestOptionsRejectInvalidUlids(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new RequestOptions(storeId: 'not-a-ulid');
     }
 
     private function storeJson(): string

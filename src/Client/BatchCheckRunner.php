@@ -6,21 +6,33 @@ namespace Curentis\OpenFga\Client;
 
 use Curentis\OpenFga\Api\OpenFgaApiInterface;
 use Curentis\OpenFga\Client\Options\BatchCheckOptions;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckItemResult;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Http\JsonBody;
+use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckItem;
+use Curentis\OpenFga\Model\BatchCheckResponse;
 use Curentis\OpenFga\Model\BatchCheckSingleResult;
+use Curentis\OpenFga\Model\CheckError;
 use Curentis\OpenFga\Model\CheckRequestTupleKey;
 use Curentis\OpenFga\Model\ConsistencyPreference;
+use Psr\Http\Message\ResponseInterface;
 
 final class BatchCheckRunner implements BatchCheckRunnerInterface
 {
-    public function __construct(private readonly OpenFgaApiInterface $api) {}
+    private const string CORRELATION_ID = '/^[\w\d-]{1,36}$/';
+
+    public function __construct(
+        private readonly OpenFgaApiInterface $api,
+        private readonly ?TransportInterface $transport = null,
+    ) {}
 
     /**
-     * @param list<ClientBatchCheckItem>   $checks
+     * @param list<ClientBatchCheckItem> $checks
      * @param array<string, string>      $headers
      */
     #[\Override]
@@ -31,46 +43,48 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
         ?string $authorizationModelId,
         ?ConsistencyPreference $consistency,
         array $headers,
+        ?RetryOptions $retry = null,
     ): ClientBatchCheckResponse {
         if ($checks === []) {
+            // Falling through also returns an empty response, so the early return is equivalent.
             /** @infection-ignore-all */
             return new ClientBatchCheckResponse([]);
         }
 
         $prepared = $this->prepareChecks($checks);
-        $results = [];
         /** @var positive-int $batchSize */
         $batchSize = $options->maxBatchSize;
         $chunks = array_chunk($prepared, $batchSize);
+        $api = $retry !== null ? $this->api->withCallOptions($retry) : $this->api;
+        $useParallel = $this->transport !== null
+            && $options->maxParallelRequests > 1
+            && $this->transport->supportsParallel();
 
-        foreach ($chunks as $chunk) {
-            $bulkId = Uuid::v4();
-            $chunkHeaders = $headers + [
-                'X-OpenFGA-Client-Bulk-Request-Id' => $bulkId,
-                'X-OpenFGA-Client-Method' => 'BatchCheck',
-            ];
+        if ($useParallel) {
+            $responses = $this->sendParallel($this->transport, $storeId, $chunks, $authorizationModelId, $consistency, $headers, $options->maxParallelRequests);
+        } else {
+            $responses = [];
+            foreach ($chunks as $chunk) {
+                $responses[] = $this->sendChunk($api, $storeId, $chunk, $authorizationModelId, $consistency, $headers);
+            }
+        }
 
-            $body = new BatchCheckBody(
-                checks: array_map(
-                    static fn(array $item): BatchCheckItem => $item['model'],
-                    $chunk,
-                ),
-                authorizationModelId: $authorizationModelId,
-                consistency: $consistency,
-            );
-
-            $response = $this->api->batchCheck($storeId, $body, $chunkHeaders);
+        $results = [];
+        foreach ($chunks as $index => $chunk) {
+            $payload = $responses[$index];
             /** @var array<string, mixed> $map */
-            $map = $response->result ?? [];
-
+            $map = $payload->result ?? [];
             foreach ($chunk as $item) {
                 $correlationId = $item['correlationId'];
                 if (isset($map[$correlationId]) && is_array($map[$correlationId])) {
-                    $raw = $map[$correlationId];
+                    $single = BatchCheckSingleResult::fromArray($map[$correlationId]);
                 } else {
-                    $raw = [];
+                    $single = new BatchCheckSingleResult(
+                        allowed: false,
+                        error: new CheckError(message: 'missing result for correlation_id ' . $correlationId),
+                    );
                 }
-                $results[] = BatchCheckSingleResult::fromArray($raw);
+                $results[] = new ClientBatchCheckItemResult($correlationId, $item['check'], $single);
             }
         }
 
@@ -78,9 +92,96 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
     }
 
     /**
+     * @param list<array{correlationId: string, model: BatchCheckItem, check: ClientBatchCheckItem}> $chunk
+     * @param array<string, string> $headers
+     */
+    private function sendChunk(
+        OpenFgaApiInterface $api,
+        string $storeId,
+        array $chunk,
+        ?string $authorizationModelId,
+        ?ConsistencyPreference $consistency,
+        array $headers,
+    ): BatchCheckResponse {
+        $response = $api->batchCheck(
+            $storeId,
+            $this->bodyForChunk($chunk, $authorizationModelId, $consistency),
+            $this->chunkHeaders($headers),
+        );
+
+        return $response;
+    }
+
+    /**
+     * @param list<list<array{correlationId: string, model: BatchCheckItem, check: ClientBatchCheckItem}>> $chunks
+     * @param array<string, string> $headers
+     *
+     * @return list<BatchCheckResponse>
+     */
+    private function sendParallel(
+        TransportInterface $transport,
+        string $storeId,
+        array $chunks,
+        ?string $authorizationModelId,
+        ?ConsistencyPreference $consistency,
+        array $headers,
+        int $maxParallel,
+    ): array {
+        $requests = [];
+        foreach ($chunks as $chunk) {
+            $requests[] = $transport->buildRequest(
+                'POST',
+                '/stores/{store_id}/batch-check',
+                ['store_id' => $storeId],
+                [],
+                $this->bodyForChunk($chunk, $authorizationModelId, $consistency)->toArray(),
+                $this->chunkHeaders($headers),
+            );
+        }
+
+        return array_map(
+            fn(ResponseInterface $response): BatchCheckResponse => BatchCheckResponse::fromArray(
+                JsonBody::decode((string) $response->getBody()),
+            ),
+            $transport->sendAll($requests, $maxParallel, $storeId),
+        );
+    }
+
+    /**
+     * @param list<array{correlationId: string, model: BatchCheckItem, check: ClientBatchCheckItem}> $chunk
+     */
+    private function bodyForChunk(
+        array $chunk,
+        ?string $authorizationModelId,
+        ?ConsistencyPreference $consistency,
+    ): BatchCheckBody {
+        return new BatchCheckBody(
+            checks: array_map(
+                static fn(array $item): BatchCheckItem => $item['model'],
+                $chunk,
+            ),
+            authorizationModelId: $authorizationModelId,
+            consistency: $consistency,
+        );
+    }
+
+    /**
+     * @param array<string, string> $headers
+     *
+     * @return array<string, string>
+     */
+    private function chunkHeaders(array $headers): array
+    {
+        return $headers + [
+            'X-OpenFGA-Client-Bulk-Request-Id' => Uuid::v4(),
+            'X-OpenFGA-Client-Method' => 'BatchCheck',
+        ];
+    }
+
+    /**
      * @param list<ClientBatchCheckItem> $checks
      *
-     * @return list<array{correlationId: string, model: BatchCheckItem}>
+     * @return list<array{correlationId: string, model: BatchCheckItem, check: ClientBatchCheckItem}>
      */
     private function prepareChecks(array $checks): array
     {
@@ -89,13 +190,20 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
 
         foreach ($checks as $check) {
             $correlationId = $check->correlationId ?? Uuid::v4();
-            if (in_array($correlationId, $seen, true)) {
+            if (preg_match(self::CORRELATION_ID, $correlationId) !== 1) {
+                throw new FgaValidationException(sprintf(
+                    'correlation_id "%s" must match ^[\w\d-]{1,36}$.',
+                    $correlationId,
+                ));
+            }
+            if (isset($seen[$correlationId])) {
                 throw new FgaValidationException(sprintf('Duplicate correlation_id "%s" in batchCheck.', $correlationId));
             }
-            $seen[] = $correlationId;
+            $seen[$correlationId] = $correlationId;
 
             $prepared[] = [
                 'correlationId' => $correlationId,
+                'check' => $check,
                 'model' => new BatchCheckItem(
                     correlationId: $correlationId,
                     tupleKey: new CheckRequestTupleKey(

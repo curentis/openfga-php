@@ -7,8 +7,6 @@ namespace Curentis\OpenFga\Tests\Unit\Client;
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\DefaultOpenFgaClientFactory;
 use Curentis\OpenFga\Client\OpenFgaClient;
-use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
-use Curentis\OpenFga\Client\OpenFgaClientInterface;
 use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
@@ -17,6 +15,8 @@ use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriFactoryInterface;
+use Psr\Http\Message\UriInterface;
 
 final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
 {
@@ -127,19 +127,85 @@ final class DefaultOpenFgaClientFactoryTest extends MockTransportTestCase
         self::assertCount(1, $mock->getRequests());
     }
 
-    public function testCreateDelegatesToClientFactoryOnConfiguration(): void
+    public function testCreateEncryptsCachedTokensWhenAKeyIsConfigured(): void
     {
         $mock = new MockClient();
-        $expected = $this->openFgaClient($mock);
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"access_token":"tok","expires_in":3600}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $factories = new Psr17Factory();
+        $logger = new \Curentis\OpenFga\Tests\Support\RecordingLogger();
 
         $client = (new DefaultOpenFgaClientFactory())->create(
             new ClientConfiguration(
                 apiUrl: 'http://localhost:8080',
-                clientFactory: new FixedOpenFgaClientFactory($expected),
+                httpClient: $mock,
+                requestFactory: $factories,
+                streamFactory: $factories,
+                uriFactory: $factories,
+                credentials: new ClientCredentials('client', 'secret', 'issuer.example', 'audience'),
+                tokenCache: new \Curentis\OpenFga\Tests\Support\SimpleArrayCache(),
+                tokenCacheKey: random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES),
+                telemetry: new \Curentis\OpenFga\Observability\SdkTelemetry($logger),
+            ),
+            new \Curentis\OpenFga\Tests\Support\FrozenClock(new \DateTimeImmutable('@1700000000')),
+            new \Random\Randomizer(new \Random\Engine\Mt19937(1)),
+        );
+
+        $client->listStores();
+        $client->listStores();
+
+        self::assertCount(3, $mock->getRequests());
+        $messages = array_map(static fn(array $record): string => (string) $record[1], $logger->records);
+        self::assertContains('openfga.token_refresh', $messages);
+    }
+
+    public function testCreateRefreshesTheCachedTokenAfterUnauthorized(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"access_token":"one","expires_in":3600}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(401, [], '{"message":"expired"}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"access_token":"two","expires_in":3600}'));
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $factories = new Psr17Factory();
+
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                requestFactory: $factories,
+                streamFactory: $factories,
+                uriFactory: $factories,
+                credentials: new ClientCredentials('client', 'secret', 'issuer.example', 'audience'),
+                tokenCache: new \Curentis\OpenFga\Tests\Support\SimpleArrayCache(),
+            ),
+            new \Curentis\OpenFga\Tests\Support\FrozenClock(new \DateTimeImmutable('@1700000000')),
+            new \Random\Randomizer(new \Random\Engine\Mt19937(1)),
+        );
+
+        self::assertSame([], $client->listStores()->stores);
+        self::assertCount(4, $mock->getRequests());
+    }
+
+    public function testCreateUsesTheConfiguredUriFactory(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new \Nyholm\Psr7\Response(200, [], '{"stores":[],"continuation_token":""}'));
+        $factories = new Psr17Factory();
+        $uriFactory = new CountingUriFactory();
+
+        $client = (new DefaultOpenFgaClientFactory())->create(
+            new ClientConfiguration(
+                storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+                httpClient: $mock,
+                requestFactory: $factories,
+                streamFactory: $factories,
+                uriFactory: $uriFactory,
             ),
         );
 
-        self::assertSame($expected, $client);
+        self::assertSame([], $client->listStores()->stores);
+        self::assertGreaterThan(0, $uriFactory->calls);
     }
 }
 
@@ -177,16 +243,17 @@ final class MarkingStreamFactory implements StreamFactoryInterface
     }
 }
 
-final class FixedOpenFgaClientFactory implements OpenFgaClientFactoryInterface
+final class CountingUriFactory implements UriFactoryInterface
 {
-    public function __construct(private readonly OpenFgaClientInterface $client) {}
+    public int $calls = 0;
+
+    public function __construct(private readonly UriFactoryInterface $inner = new Psr17Factory()) {}
 
     #[\Override]
-    public function create(
-        ClientConfiguration $configuration,
-        ?\Psr\Clock\ClockInterface $clock = null,
-        ?\Random\Randomizer $randomizer = null,
-    ): OpenFgaClientInterface {
-        return $this->client;
+    public function createUri(string $uri = ''): UriInterface
+    {
+        ++$this->calls;
+
+        return $this->inner->createUri($uri);
     }
 }

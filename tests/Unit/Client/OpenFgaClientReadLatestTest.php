@@ -29,27 +29,16 @@ final class OpenFgaClientReadLatestTest extends MockTransportTestCase
             ],
             'continuation_token' => '',
         ], JSON_THROW_ON_ERROR)));
-        $mock->addResponse(new Response(200, [], json_encode([
-            'authorization_model' => [
-                'id' => $modelId,
-                'schema_version' => '1.1',
-                'type_definitions' => [['type' => 'user']],
-            ],
-        ], JSON_THROW_ON_ERROR)));
-
         $client = $this->openFgaClient($mock);
         $latest = $client->readLatestAuthorizationModel();
 
         self::assertNotNull($latest);
         self::assertNotNull($latest->authorizationModel);
         self::assertSame($modelId, $latest->authorizationModel->id);
+        self::assertSame('1.1', $latest->authorizationModel->schemaVersion);
 
         $requests = $mock->getRequests();
-        self::assertCount(2, $requests);
+        self::assertCount(1, $requests);
         self::assertStringContainsString('page_size=1', $requests[0]->getUri()->getQuery());
-        self::assertStringContainsString(
-            '/authorization-models/' . $modelId,
-            $requests[1]->getUri()->getPath(),
-        );
     }
 }

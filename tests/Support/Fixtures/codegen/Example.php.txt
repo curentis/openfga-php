@@ -6,7 +6,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Example implements \JsonSerializable
 {
@@ -19,8 +19,8 @@ final readonly class Example implements \JsonSerializable
     /** @param array<array-key, mixed> $data */
     public static function fromArray(array $data, string $path = ''): self
     {
-            if (!array_key_exists('id', $data)) { throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'id')); }
-            if (!is_string($data['id'])) { throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'id')); }
+            if (!array_key_exists('id', $data)) { throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'id')); }
+            if (!is_string($data['id'])) { throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'id')); }
             $id = $data['id'];
             $name = null;
             if (array_key_exists('name', $data)) {
@@ -28,7 +28,7 @@ final readonly class Example implements \JsonSerializable
                 if ($name === null) {
                 $name = null;
             } else {
-                if (!is_string($name)) { throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name')); }
+                if (!is_string($name)) { throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name')); }
             }
             }
             return new self(id: $id, name: $name);

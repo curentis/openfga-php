@@ -59,8 +59,8 @@ final class BatchCheckListRelationsIntegrationTest extends TestCase
             ]);
 
             self::assertCount(2, $batch->results);
-            self::assertTrue($batch->results[0]->allowed);
-            self::assertFalse($batch->results[1]->allowed);
+            self::assertTrue($batch->results[0]->result->allowed);
+            self::assertFalse($batch->results[1]->result->allowed);
 
             $relations = $fga->listRelations(new ClientListRelationsRequest(
                 'user:anne',

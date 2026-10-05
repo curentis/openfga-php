@@ -7,7 +7,10 @@ namespace Curentis\OpenFga\Client;
 use Curentis\OpenFga\Api\OpenFgaApi;
 use Curentis\OpenFga\Credentials\ClientAssertion;
 use Curentis\OpenFga\Credentials\ClientCredentials;
+use Curentis\OpenFga\Credentials\JsonTokenCacheCodec;
+use Curentis\OpenFga\Credentials\SodiumTokenCacheCodec;
 use Curentis\OpenFga\Credentials\TokenProvider;
+use Curentis\OpenFga\Http\Adapter\ConcurrentSenderSelector;
 use Curentis\OpenFga\Http\NativeClock;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Curentis\OpenFga\Http\SystemSleeper;
@@ -25,32 +28,39 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
         ?ClockInterface $clock = null,
         ?Randomizer $randomizer = null,
     ): OpenFgaClientInterface {
-        if ($configuration->clientFactory !== null) {
-            return $configuration->clientFactory->create($configuration, $clock, $randomizer);
-        }
-
         if ($clock === null) {
             $clock = new NativeClock();
         }
         if ($randomizer === null) {
             $randomizer = new Randomizer();
         }
+
         $httpClient = $configuration->httpClient ?? Psr18ClientDiscovery::find();
         $requestFactory = $configuration->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $streamFactory = $configuration->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+        $uriFactory = $configuration->uriFactory ?? Psr17FactoryDiscovery::findUriFactory();
+        $resolved = $configuration->withHttpStack($httpClient, $requestFactory, $streamFactory, $uriFactory);
 
         $retryPolicy = new RetryPolicy(
-            $configuration->retry->maxRetry,
-            $configuration->retry->minWaitMs,
+            $resolved->retry->maxRetry,
+            $resolved->retry->minWaitMs,
             new SystemSleeper(),
             $clock,
             $randomizer,
+            maxElapsedMs: $resolved->retry->maxElapsedMs,
+            maxDelayMs: $resolved->retry->maxDelayMs,
+            telemetry: $resolved->telemetry,
         );
 
         /** @var ?\Closure(): string $tokenResolver */
         $tokenResolver = null;
-        $credentials = $configuration->credentials;
+        /** @var ?\Closure(): void $invalidateToken */
+        $invalidateToken = null;
+        $credentials = $resolved->credentials;
         if ($credentials instanceof ClientCredentials || $credentials instanceof ClientAssertion) {
+            $codec = $resolved->tokenCacheKey !== null
+                ? new SodiumTokenCacheCodec($resolved->tokenCacheKey)
+                : new JsonTokenCacheCodec();
             $tokenProvider = new TokenProvider(
                 $credentials,
                 $httpClient,
@@ -59,33 +69,38 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
                 $retryPolicy,
                 $clock,
                 $randomizer,
-                $configuration->tokenCache,
+                $resolved->tokenCache,
+                $codec,
+                $resolved->telemetry,
             );
             $tokenResolver = static function () use ($tokenProvider): string {
                 return $tokenProvider->getAccessToken();
             };
+            $invalidateToken = static function () use ($tokenProvider): void {
+                $tokenProvider->invalidate();
+            };
         }
 
         $transport = TransportFactory::create(
-            $configuration,
+            $resolved,
             $clock,
             new SystemSleeper(),
             $randomizer,
             $tokenResolver,
+            $retryPolicy,
+            $invalidateToken,
+            ConcurrentSenderSelector::select($httpClient),
         );
 
         $api = new OpenFgaApi($transport);
-        $componentFactory = $configuration->componentFactory;
-        if ($componentFactory === null) {
-            $componentFactory = new DefaultClientComponentFactory();
-        }
+        $componentFactory = $resolved->componentFactory ?? new DefaultClientComponentFactory();
 
         return new OpenFgaClient(
-            $configuration,
+            $resolved,
             $api,
             $transport,
             $componentFactory->createWriteRunner($api),
-            $componentFactory->createBatchCheckRunner($api),
+            $componentFactory->createBatchCheckRunner($api, $transport),
             $componentFactory->createConsistencyBodyFactory(),
         );
     }

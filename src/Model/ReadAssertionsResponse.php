@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ReadAssertionsResponse implements \JsonSerializable
 {
@@ -19,10 +19,10 @@ final readonly class ReadAssertionsResponse implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('authorization_model_id', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
         }
         if (!is_string($data['authorization_model_id'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
         }
         $authorizationModelId = $data['authorization_model_id'];
         $assertions = null;
@@ -32,12 +32,12 @@ final readonly class ReadAssertionsResponse implements \JsonSerializable
                 $assertions = null;
             } else {
                 if (!is_array($assertions)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
                 }
                 $assertionsList = [];
                 foreach ($assertions as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $assertionsList[] = Assertion::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class WriteAssertionsBody implements \JsonSerializable
 {
@@ -18,15 +18,15 @@ final readonly class WriteAssertionsBody implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('assertions', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'assertions'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'assertions'));
         }
         if (!is_array($data['assertions'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'assertions'));
         }
         $assertionsList = [];
         foreach ($data['assertions'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $assertionsList[] = Assertion::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }

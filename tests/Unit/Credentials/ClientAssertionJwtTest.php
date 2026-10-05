@@ -83,11 +83,9 @@ final class ClientAssertionJwtTest extends TestCase
 
     public function testInvalidPrivateKeyThrows(): void
     {
-        $credentials = new ClientAssertion('client', 'not-a-key', 'issuer.example', 'audience');
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Invalid private key');
-        ClientAssertionJwt::sign($credentials, 1, 'jti');
+        $this->expectException(\Curentis\OpenFga\Exception\FgaValidationException::class);
+        $this->expectExceptionMessage('RSA private key');
+        new ClientAssertion('client', 'not-a-key', 'issuer.example', 'audience');
     }
 
     /**

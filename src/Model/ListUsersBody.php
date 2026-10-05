@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ListUsersBody implements \JsonSerializable
 {
@@ -26,29 +26,29 @@ final readonly class ListUsersBody implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('object', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'object'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'object'));
         }
         if (!is_array($data['object'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'object'));
         }
         $object = FgaObject::fromArray($data['object'], ($path === '' ? '' : $path . '.') . 'object');
         if (!array_key_exists('relation', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         if (!is_string($data['relation'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'relation'));
         }
         $relation = $data['relation'];
         if (!array_key_exists('user_filters', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user_filters'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'user_filters'));
         }
         if (!is_array($data['user_filters'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'user_filters'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'user_filters'));
         }
         $userFiltersList = [];
         foreach ($data['user_filters'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $userFiltersList[] = UserTypeFilter::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
@@ -60,7 +60,7 @@ final readonly class ListUsersBody implements \JsonSerializable
                 $authorizationModelId = null;
             } else {
                 if (!is_string($authorizationModelId)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
                 }
             }
         }
@@ -71,14 +71,14 @@ final readonly class ListUsersBody implements \JsonSerializable
                 $consistency = null;
             } else {
                 if (!is_string($consistency)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
                 if (!in_array($consistency, [
                     0 => 'UNSPECIFIED',
                     1 => 'MINIMIZE_LATENCY',
                     2 => 'HIGHER_CONSISTENCY',
                 ], true)) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
             }
         }
@@ -89,7 +89,7 @@ final readonly class ListUsersBody implements \JsonSerializable
                 $context = null;
             } else {
                 if (!is_array($context)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
                 }
             }
         }
@@ -100,12 +100,12 @@ final readonly class ListUsersBody implements \JsonSerializable
                 $contextualTuples = null;
             } else {
                 if (!is_array($contextualTuples)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
                 $contextualTuplesList = [];
                 foreach ($contextualTuples as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $contextualTuplesList[] = TupleKey::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }

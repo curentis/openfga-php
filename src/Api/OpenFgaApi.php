@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Api;
 
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Http\QueryParameterFilter;
 use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\BatchCheckBody;
@@ -35,6 +36,12 @@ use Curentis\OpenFga\Model\WriteResponse;
 final class OpenFgaApi implements OpenFgaApiInterface
 {
     public function __construct(private readonly TransportInterface $transport) {}
+
+    #[\Override]
+    public function withCallOptions(?RetryOptions $retry): self
+    {
+        return new self(new CallOptionsTransport($this->transport, $retry));
+    }
 
     /**
      * @param array<string, string> $headers
@@ -73,6 +80,9 @@ final class OpenFgaApi implements OpenFgaApiInterface
             [],
             $body->toArray(),
             $headers,
+            null,
+            null,
+            false,
         ));
     }
 
@@ -151,6 +161,8 @@ final class OpenFgaApi implements OpenFgaApiInterface
             $body->toArray(),
             $headers,
             $storeId,
+            null,
+            false,
         ));
     }
 
@@ -198,7 +210,7 @@ final class OpenFgaApi implements OpenFgaApiInterface
      * @param array<string, string> $headers
      */
     #[\Override]
-    public function write(string $storeId, WriteBody $body, array $headers = []): WriteResponse
+    public function write(string $storeId, WriteBody $body, array $headers = [], bool $idempotent = false): WriteResponse
     {
         return WriteResponse::fromArray($this->transport->sendJson(
             'POST',
@@ -208,6 +220,8 @@ final class OpenFgaApi implements OpenFgaApiInterface
             $body->toArray(),
             $headers,
             $storeId,
+            null,
+            $idempotent,
         ));
     }
 
@@ -379,6 +393,8 @@ final class OpenFgaApi implements OpenFgaApiInterface
             $body->toArray(),
             $headers,
             $storeId,
+            null,
+            false,
         );
     }
 

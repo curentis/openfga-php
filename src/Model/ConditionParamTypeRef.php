@@ -5,12 +5,12 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ConditionParamTypeRef implements \JsonSerializable
 {
     public function __construct(
-        public TypeName $typeName,
+        public TypeName|string $typeName,
         /** @var list<ConditionParamTypeRef>|null */
         public ?array $genericTypes = null
     ) {}
@@ -19,16 +19,13 @@ final readonly class ConditionParamTypeRef implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('type_name', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type_name'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type_name'));
         }
         if (!is_string($data['type_name'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'type_name'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'type_name'));
         }
-        try {
-            $typeName = TypeName::from($data['type_name']);
-        } catch (\ValueError) {
-            throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'type_name'));
-        }
+        $parsedtypeName = TypeName::tryFrom($data['type_name']);
+        $typeName = $parsedtypeName instanceof \BackedEnum ? $parsedtypeName : $data['type_name'];
         $genericTypes = null;
         if (array_key_exists('generic_types', $data)) {
             $genericTypes = $data['generic_types'];
@@ -36,12 +33,12 @@ final readonly class ConditionParamTypeRef implements \JsonSerializable
                 $genericTypes = null;
             } else {
                 if (!is_array($genericTypes)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'generic_types'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'generic_types'));
                 }
                 $genericTypesList = [];
                 foreach ($genericTypes as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $genericTypesList[] = ConditionParamTypeRef::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }
@@ -54,7 +51,7 @@ final readonly class ConditionParamTypeRef implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['type_name' => $this->typeName->value, 'generic_types' => $this->genericTypes === null ? null : array_map(static fn(ConditionParamTypeRef $v): array => $v->toArray(), $this->genericTypes)], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['type_name' => $this->typeName instanceof \BackedEnum ? $this->typeName->value : $this->typeName, 'generic_types' => $this->genericTypes === null ? null : array_map(static fn(ConditionParamTypeRef $v): array => $v->toArray(), $this->genericTypes)], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */
