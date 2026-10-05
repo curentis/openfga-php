@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class UsersetTreeTupleToUserset implements \JsonSerializable
 {
@@ -19,24 +19,24 @@ final readonly class UsersetTreeTupleToUserset implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('computed', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'computed'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'computed'));
         }
         if (!is_array($data['computed'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'computed'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'computed'));
         }
         $computedList = [];
         foreach ($data['computed'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $computedList[] = Computed::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
         $computed = $computedList;
         if (!array_key_exists('tupleset', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tupleset'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tupleset'));
         }
         if (!is_string($data['tupleset'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'tupleset'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'tupleset'));
         }
         $tupleset = $data['tupleset'];
         return new self(computed: $computed, tupleset: $tupleset);

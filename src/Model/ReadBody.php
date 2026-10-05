@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class ReadBody implements \JsonSerializable
 {
@@ -26,14 +26,14 @@ final readonly class ReadBody implements \JsonSerializable
                 $consistency = null;
             } else {
                 if (!is_string($consistency)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
                 if (!in_array($consistency, [
                     0 => 'UNSPECIFIED',
                     1 => 'MINIMIZE_LATENCY',
                     2 => 'HIGHER_CONSISTENCY',
                 ], true)) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
             }
         }
@@ -44,7 +44,7 @@ final readonly class ReadBody implements \JsonSerializable
                 $continuationToken = null;
             } else {
                 if (!is_string($continuationToken)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'continuation_token'));
                 }
             }
         }
@@ -55,7 +55,7 @@ final readonly class ReadBody implements \JsonSerializable
                 $pageSize = null;
             } else {
                 if (!is_integer($pageSize)) {
-                    throw new FgaValidationException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'page_size'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected int', ($path === '' ? '' : $path . '.') . 'page_size'));
                 }
             }
         }
@@ -66,7 +66,7 @@ final readonly class ReadBody implements \JsonSerializable
                 $tupleKey = null;
             } else {
                 if (!is_array($tupleKey)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
                 }
                 $tupleKey = ReadRequestTupleKey::fromArray($tupleKey, ($path === '' ? '' : $path . '.') . 'tuple_key');
             }

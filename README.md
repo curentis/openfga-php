@@ -79,11 +79,12 @@ php examples/quickstart.php
 | `storeId` / `authorizationModelId` | Default ULIDs for store-scoped APIs (optional) |
 | `credentials` | `ApiToken`, `ClientCredentials`, `ClientAssertion`, or `NoCredentials` |
 | `tokenCache` | Optional PSR-16 cache for OAuth access tokens |
-| `httpClient`, `requestFactory`, `streamFactory` | Override PSR-18 / PSR-17 discovery |
-| `retry` | `RetryOptions` (max retries, backoff) |
+| `httpClient`, `requestFactory`, `streamFactory`, `uriFactory` | Override PSR-18 / PSR-17 discovery |
+| `retry` | `RetryOptions` (max retries, backoff, elapsed budget, per-attempt cap) |
 | `defaultHeaders` | Headers sent on every request |
 | `componentFactory` | Custom write/batch-check runners and consistency body factory |
-| `clientFactory` | Replace the entire client construction pipeline |
+| `tokenCacheKey` | Optional 32-byte sodium key that encrypts cached OAuth tokens |
+| `telemetry` | Optional PSR-3 logger and PSR-14 dispatcher |
 
 Immutable helpers `withStoreId()` / `withAuthorizationModelId()` return a new client; per-call overrides use `RequestOptions` (store, model, headers). Details: [docs/getting-started.md](docs/getting-started.md).
 
@@ -165,6 +166,8 @@ Guide: [docs/customization.md](docs/customization.md) · Example: [examples/cust
 | [docs/authentication.md](docs/authentication.md) | Tokens and OAuth |
 | [docs/client-operations.md](docs/client-operations.md) | Writes, batch check, consistency, raw requests |
 | [docs/customization.md](docs/customization.md) | Extension interfaces |
+| [docs/error-handling.md](docs/error-handling.md) | Exception hierarchy and partial writes |
+| [docs/production.md](docs/production.md) | Timeouts, retries, token cache, consistency |
 | [examples/README.md](examples/README.md) | Runnable scripts |
 
 ## Development

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Assertion implements \JsonSerializable
 {
@@ -22,17 +22,17 @@ final readonly class Assertion implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('expectation', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'expectation'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'expectation'));
         }
         if (!is_bool($data['expectation'])) {
-            throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'expectation'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'expectation'));
         }
         $expectation = $data['expectation'];
         if (!array_key_exists('tuple_key', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         if (!is_array($data['tuple_key'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         $tupleKey = AssertionTupleKey::fromArray($data['tuple_key'], ($path === '' ? '' : $path . '.') . 'tuple_key');
         $context = null;
@@ -42,7 +42,7 @@ final readonly class Assertion implements \JsonSerializable
                 $context = null;
             } else {
                 if (!is_array($context)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
                 }
             }
         }
@@ -53,12 +53,12 @@ final readonly class Assertion implements \JsonSerializable
                 $contextualTuples = null;
             } else {
                 if (!is_array($contextualTuples)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
                 $contextualTuplesList = [];
                 foreach ($contextualTuples as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $contextualTuplesList[] = TupleKey::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }

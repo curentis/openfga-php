@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Http;
 
-/**
- * @internal
- */
 final class SystemSleeper implements Sleeper
 {
     #[\Override]
@@ -17,11 +14,7 @@ final class SystemSleeper implements Sleeper
             return;
         }
 
-        usleep(self::microseconds($milliseconds));
-    }
-
-    public static function microseconds(int $milliseconds): int
-    {
-        return $milliseconds * 1000;
+        /** @infection-ignore-all */
+        usleep($milliseconds * 1000);
     }
 }

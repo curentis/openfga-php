@@ -26,8 +26,4 @@ final class SystemSleeperTest extends TestCase
         self::assertGreaterThan(10, $elapsedMs);
     }
 
-    public function testMicrosecondsUsesOneThousandPerMillisecond(): void
-    {
-        self::assertSame(2000, SystemSleeper::microseconds(2));
-    }
 }

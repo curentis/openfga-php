@@ -14,6 +14,7 @@ use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Client\WriteRunnerInterface;
+use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\WriteAuthorizationModelBody;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -31,6 +32,7 @@ final class HeaderWriteRunner implements WriteRunnerInterface
         ?string $authorizationModelId,
         WriteOptions $writeOptions,
         array $headers,
+        ?\Curentis\OpenFga\Client\Options\RetryOptions $retry = null,
     ): ClientWriteResponse {
         return $this->inner->run(
             $storeId,
@@ -56,9 +58,9 @@ final class DemoComponentFactory implements ClientComponentFactoryInterface
         return new HeaderWriteRunner($this->defaults->createWriteRunner($api));
     }
 
-    public function createBatchCheckRunner(OpenFgaApiInterface $api): BatchCheckRunnerInterface
+    public function createBatchCheckRunner(OpenFgaApiInterface $api, TransportInterface $transport): BatchCheckRunnerInterface
     {
-        return $this->defaults->createBatchCheckRunner($api);
+        return $this->defaults->createBatchCheckRunner($api, $transport);
     }
 
     public function createConsistencyBodyFactory(): ConsistencyBodyFactoryInterface

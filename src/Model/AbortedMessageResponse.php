@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class AbortedMessageResponse implements \JsonSerializable
 {
@@ -24,7 +24,7 @@ final readonly class AbortedMessageResponse implements \JsonSerializable
                 $code = null;
             } else {
                 if (!is_string($code)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
                 }
             }
         }
@@ -35,7 +35,7 @@ final readonly class AbortedMessageResponse implements \JsonSerializable
                 $message = null;
             } else {
                 if (!is_string($message)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
                 }
             }
         }

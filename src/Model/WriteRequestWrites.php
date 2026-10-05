@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class WriteRequestWrites implements \JsonSerializable
 {
@@ -19,15 +19,15 @@ final readonly class WriteRequestWrites implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('tuple_keys', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_keys'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_keys'));
         }
         if (!is_array($data['tuple_keys'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'tuple_keys'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'tuple_keys'));
         }
         $tupleKeysList = [];
         foreach ($data['tuple_keys'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $tupleKeysList[] = TupleKey::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
@@ -39,13 +39,13 @@ final readonly class WriteRequestWrites implements \JsonSerializable
                 $onDuplicate = null;
             } else {
                 if (!is_string($onDuplicate)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
                 }
                 if (!in_array($onDuplicate, [
                     0 => 'error',
                     1 => 'ignore',
                 ], true)) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
+                    throw new FgaResponseDecodeException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'on_duplicate'));
                 }
             }
         }

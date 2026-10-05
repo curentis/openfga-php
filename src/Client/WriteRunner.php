@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Client;
 
 use Curentis\OpenFga\Api\OpenFgaApiInterface;
+use Curentis\OpenFga\Client\Options\ConflictOptions;
+use Curentis\OpenFga\Client\Options\OnDuplicateWrites;
+use Curentis\OpenFga\Client\Options\OnMissingDeletes;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteTupleResult;
+use Curentis\OpenFga\Exception\FgaApiNotFoundException;
+use Curentis\OpenFga\Exception\FgaApiValidationException;
+use Curentis\OpenFga\Exception\FgaPartialWriteException;
+use Curentis\OpenFga\Exception\FgaValidationException;
 
 final class WriteRunner implements WriteRunnerInterface
 {
@@ -26,10 +34,18 @@ final class WriteRunner implements WriteRunnerInterface
         ?string $authorizationModelId,
         WriteOptions $writeOptions,
         array $headers,
+        ?RetryOptions $retry = null,
     ): ClientWriteResponse {
+        if ($request->writes === [] && $request->deletes === []) {
+            throw new FgaValidationException('write request must include at least one write or delete.');
+        }
+
+        $api = $retry !== null ? $this->api->withCallOptions($retry) : $this->api;
+        $idempotent = $this->isIdempotent($request, $writeOptions->conflict);
+
         if (!$writeOptions->transaction->disable) {
             $body = ClientRequestMapper::toWriteBody($request, $authorizationModelId, $writeOptions->conflict);
-            $response = $this->api->write($storeId, $body, $headers + ['X-OpenFGA-Client-Method' => 'Write']);
+            $response = $api->write($storeId, $body, $headers + ['X-OpenFGA-Client-Method' => 'Write'], $idempotent);
 
             return new ClientWriteResponse($response);
         }
@@ -41,19 +57,35 @@ final class WriteRunner implements WriteRunnerInterface
 
         foreach ($this->chunkTuples($request, $maxPerChunk) as $chunk) {
             $body = ClientRequestMapper::toWriteBody($chunk, $authorizationModelId, $writeOptions->conflict);
+            $chunkIdempotent = $this->isIdempotent($chunk, $writeOptions->conflict);
             try {
-                $lastResponse = $this->api->write(
+                $lastResponse = $api->write(
                     $storeId,
                     $body,
                     $headers + ['X-OpenFGA-Client-Method' => 'Write'],
+                    $chunkIdempotent,
                 );
-                $tupleResults = array_merge($tupleResults, $this->successResults($chunk));
+                foreach ($this->successResults($chunk) as $result) {
+                    $tupleResults[] = $result;
+                }
+            } catch (FgaApiValidationException|FgaApiNotFoundException $exception) {
+                foreach ($this->failureResults($chunk, $exception) as $result) {
+                    $tupleResults[] = $result;
+                }
             } catch (\Throwable $exception) {
-                $tupleResults = array_merge($tupleResults, $this->failureResults($chunk, $exception));
+                throw new FgaPartialWriteException($tupleResults, $exception);
             }
         }
 
         return new ClientWriteResponse($lastResponse, $tupleResults);
+    }
+
+    private function isIdempotent(ClientWriteRequest $request, ConflictOptions $conflict): bool
+    {
+        $writesOk = $request->writes === [] || $conflict->onDuplicateWrites === OnDuplicateWrites::Ignore;
+        $deletesOk = $request->deletes === [] || $conflict->onMissingDeletes === OnMissingDeletes::Ignore;
+
+        return $writesOk && $deletesOk;
     }
 
     /**
@@ -64,18 +96,11 @@ final class WriteRunner implements WriteRunnerInterface
     private function chunkTuples(ClientWriteRequest $request, int $maxPerChunk): array
     {
         $chunks = [];
-        $writes = $request->writes;
-        $deletes = $request->deletes;
-
-        foreach (array_chunk($writes, $maxPerChunk) as $writeChunk) {
+        foreach (array_chunk($request->writes, $maxPerChunk) as $writeChunk) {
             $chunks[] = new ClientWriteRequest(writes: $writeChunk);
         }
-        foreach (array_chunk($deletes, $maxPerChunk) as $deleteChunk) {
+        foreach (array_chunk($request->deletes, $maxPerChunk) as $deleteChunk) {
             $chunks[] = new ClientWriteRequest(deletes: $deleteChunk);
-        }
-
-        if ($chunks === []) {
-            return [new ClientWriteRequest()];
         }
 
         return $chunks;

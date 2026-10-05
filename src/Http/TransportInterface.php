@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Http;
 
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -22,6 +23,8 @@ interface TransportInterface
         mixed $body = null,
         array $requestHeaders = [],
         ?string $storeId = null,
+        ?RetryOptions $retry = null,
+        bool $idempotent = true,
     ): ResponseInterface;
 
     /**
@@ -39,7 +42,18 @@ interface TransportInterface
         mixed $body = null,
         array $requestHeaders = [],
         ?string $storeId = null,
+        ?RetryOptions $retry = null,
+        bool $idempotent = true,
     ): array;
+
+    /**
+     * @param list<RequestInterface> $requests
+     *
+     * @return list<ResponseInterface>
+     */
+    public function sendAll(array $requests, int $maxParallel, ?string $storeId = null): array;
+
+    public function supportsParallel(): bool;
 
     /**
      * @param array<string, scalar|null>                   $pathParams

@@ -45,7 +45,7 @@ final class ClassRenderer
         $fromArrayLines = [];
         $toArrayEntries = [];
         $uses = [
-            'Curentis\\OpenFga\\Exception\\FgaValidationException' => true,
+            'Curentis\\OpenFga\\Exception\\FgaResponseDecodeException' => true,
         ];
 
         foreach ($propNames as $jsonName) {
@@ -75,8 +75,13 @@ final class ClassRenderer
             }
 
             $phpType = $mapped['phpType'];
+            if ($mapped['enumSchema'] !== null) {
+                $phpType .= '|string';
+            }
             if ($mapped['nullable']) {
-                $phpType = '?' . ltrim($phpType, '?');
+                $phpType = $mapped['enumSchema'] !== null
+                    ? $phpType . '|null'
+                    : '?' . ltrim($phpType, '?');
             }
 
             $default = $isRequired ? '' : ' = null';
@@ -174,7 +179,7 @@ final class ClassRenderer
 
         if ($isRequired) {
             $lines[] = sprintf(
-                'if (!array_key_exists(\'%s\', $data)) { throw new FgaValidationException(sprintf(\'%s: required\', %s)); }',
+                'if (!array_key_exists(\'%s\', $data)) { throw new FgaResponseDecodeException(sprintf(\'%s: required\', %s)); }',
                 addslashes($jsonName),
                 '%s',
                 $pathExpr,
@@ -256,7 +261,7 @@ final class ClassRenderer
     ): array {
         if ($mapped['isDateTime']) {
             return [
-                sprintf('if (!is_string(%s)) { throw new FgaValidationException(sprintf(\'%s: expected date-time string\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('if (!is_string(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected date-time string\', %s)); }', $valueExpr, '%s', $pathExpr),
                 sprintf('$%s = new \\DateTimeImmutable(%s);', $phpName, $valueExpr),
             ];
         }
@@ -265,8 +270,8 @@ final class ClassRenderer
             $enumClass = $mapped['phpType'];
 
             return [
-                sprintf('if (!is_string(%s)) { throw new FgaValidationException(sprintf(\'%s: expected string\', %s)); }', $valueExpr, '%s', $pathExpr),
-                sprintf('try { $%s = %s::from(%s); } catch (\\ValueError) { throw new FgaValidationException(sprintf(\'%s: invalid enum value\', %s)); }', $phpName, $enumClass, $valueExpr, '%s', $pathExpr),
+                sprintf('if (!is_string(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected string\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('$parsed%s = %s::tryFrom(%s); $%s = $parsed%s instanceof \\BackedEnum ? $parsed%s : %s;', $phpName, $enumClass, $valueExpr, $phpName, $phpName, $phpName, $valueExpr),
             ];
         }
 
@@ -274,8 +279,8 @@ final class ClassRenderer
             $allowed = var_export(array_values($mapped['enumValues']), true);
 
             return [
-                sprintf('if (!is_string(%s)) { throw new FgaValidationException(sprintf(\'%s: expected string\', %s)); }', $valueExpr, '%s', $pathExpr),
-                sprintf('if (!in_array(%s, %s, true)) { throw new FgaValidationException(sprintf(\'%s: invalid enum value\', %s)); }', $valueExpr, $allowed, '%s', $pathExpr),
+                sprintf('if (!is_string(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected string\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('if (!in_array(%s, %s, true)) { throw new FgaResponseDecodeException(sprintf(\'%s: invalid enum value\', %s)); }', $valueExpr, $allowed, '%s', $pathExpr),
                 ...($isRequired ? [sprintf('$%s = %s;', $phpName, $valueExpr)] : []),
             ];
         }
@@ -284,7 +289,7 @@ final class ClassRenderer
             $listVar = $phpName . 'List';
 
             return [
-                sprintf('if (!is_array(%s)) { throw new FgaValidationException(sprintf(\'%s: expected array\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('if (!is_array(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected array\', %s)); }', $valueExpr, '%s', $pathExpr),
                 sprintf('$%s = [];', $listVar),
                 sprintf('foreach (%s as $idx => $item) {', $valueExpr),
                 ...$this->renderListItemAssignment($listVar, $mapped),
@@ -297,21 +302,21 @@ final class ClassRenderer
             $class = $mapped['phpType'];
 
             return [
-                sprintf('if (!is_array(%s)) { throw new FgaValidationException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('if (!is_array(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, '%s', $pathExpr),
                 sprintf('$%s = %s::fromArray(%s, %s);', $phpName, $class, $valueExpr, $pathExpr),
             ];
         }
 
         if ($mapped['isEmptyObject']) {
             return [
-                sprintf('if (!is_array(%s) && !($%s instanceof \\stdClass)) { throw new FgaValidationException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, $isRequired ? 'data' : $phpName, '%s', $pathExpr),
+                sprintf('if (!is_array(%s) && !($%s instanceof \\stdClass)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, $isRequired ? 'data' : $phpName, '%s', $pathExpr),
                 sprintf('$%s = is_array(%s) ? (object) %s : %s;', $phpName, $valueExpr, $valueExpr, $valueExpr),
             ];
         }
 
         if ($mapped['isFreeFormObject'] || ($mapped['phpType'] === 'array' && !$mapped['isList'])) {
             return [
-                sprintf('if (!is_array(%s)) { throw new FgaValidationException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, '%s', $pathExpr),
+                sprintf('if (!is_array(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected object\', %s)); }', $valueExpr, '%s', $pathExpr),
             ];
         }
 
@@ -330,10 +335,10 @@ final class ClassRenderer
         if (is_array($phpScalar)) {
             $checks = implode(' || ', array_map(static fn(string $t): string => sprintf('is_%s(%s)', $t, $valueExpr), $phpScalar));
 
-            return [sprintf('if (!(%s)) { throw new FgaValidationException(sprintf(\'%s: expected number\', %s)); }', $checks, '%s', $pathExpr)];
+            return [sprintf('if (!(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected number\', %s)); }', $checks, '%s', $pathExpr)];
         }
 
-        $line = sprintf('if (!is_%s(%s)) { throw new FgaValidationException(sprintf(\'%s: expected %s\', %s)); }', $phpScalar, $valueExpr, '%s', $mapped['phpType'], $pathExpr);
+        $line = sprintf('if (!is_%s(%s)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected %s\', %s)); }', $phpScalar, $valueExpr, '%s', $mapped['phpType'], $pathExpr);
         if ($isRequired && in_array($mapped['phpType'], ['string', 'int', 'float', 'bool'], true)) {
             return [$line, sprintf('$%s = %s;', $phpName, $valueExpr)];
         }
@@ -357,19 +362,19 @@ final class ClassRenderer
             $class = NameConverter::schemaToClassName($mapped['modelSchema']);
 
             return [
-                '    if (!is_array($item)) { throw new FgaValidationException(sprintf(\'%s: expected object\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
+                '    if (!is_array($item)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected object\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
                 sprintf('    $%s[] = %s::fromArray($item, ($path === \'\' ? \'\' : $path . \'.\') . (string) $idx);', $phpName, $class),
             ];
         }
         if ($itemType === 'string') {
             return [
-                '    if (!is_string($item)) { throw new FgaValidationException(sprintf(\'%s: expected string\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
+                '    if (!is_string($item)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected string\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
                 sprintf('    $%s[] = $item;', $phpName),
             ];
         }
         if ($itemType === 'int') {
             return [
-                '    if (!is_int($item)) { throw new FgaValidationException(sprintf(\'%s: expected int\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
+                '    if (!is_int($item)) { throw new FgaResponseDecodeException(sprintf(\'%s: expected int\', ($path === \'\' ? \'\' : $path . \'.\') . $idx)); }',
                 sprintf('    $%s[] = $item;', $phpName),
             ];
         }
@@ -398,11 +403,13 @@ final class ClassRenderer
             return sprintf('\'%s\' => $this->%s->format(\\DateTimeInterface::ATOM)', addslashes($jsonName), $phpName);
         }
         if ($mapped['enumSchema'] !== null) {
-            if ($mapped['nullable']) {
-                return sprintf('\'%s\' => $this->%s?->value', addslashes($jsonName), $phpName);
-            }
-
-            return sprintf('\'%s\' => $this->%s->value', addslashes($jsonName), $phpName);
+            return sprintf(
+                '\'%s\' => $this->%s instanceof \\BackedEnum ? $this->%s->value : $this->%s',
+                addslashes($jsonName),
+                $phpName,
+                $phpName,
+                $phpName,
+            );
         }
         if ($mapped['isList'] && $mapped['modelSchema'] !== null) {
             $class = NameConverter::schemaToClassName($mapped['modelSchema']);

@@ -166,4 +166,42 @@ final class ErrorMapperTest extends TestCase
         self::assertStringNotContainsString('leak', $exception->getMessage());
         self::assertStringNotContainsString('client_secret', $exception->getMessage());
     }
+
+    public function testNonJsonBodiesAreTruncatedAndControlCharactersAreStripped(): void
+    {
+        $raw = "secret\x00" . str_repeat('a', 600);
+        $exception = $this->mapper->map('GET', '/stores', null, new Response(418, [], $raw));
+
+        self::assertStringNotContainsString("\x00", $exception->getMessage());
+        self::assertStringContainsString('...', $exception->getMessage());
+        self::assertStringNotContainsString(str_repeat('a', 600), $exception->getMessage());
+        self::assertSame($raw, $exception->responseBody);
+    }
+
+    public function testBodiesAtTheMessageCapAreNotEllipsized(): void
+    {
+        $raw = str_repeat('a', 512);
+        $exception = $this->mapper->map('GET', '/stores', null, new Response(418, [], $raw));
+
+        self::assertStringContainsString($raw, $exception->getMessage());
+        self::assertStringNotContainsString('...', $exception->getMessage());
+    }
+
+    public function testTruncationKeepsTheFirst512CharactersAndAnEllipsis(): void
+    {
+        $raw = str_repeat('a', 511) . 'B' . 'Z' . str_repeat('d', 20);
+        $exception = $this->mapper->map('GET', '/stores', null, new Response(418, [], $raw));
+
+        self::assertStringContainsString(str_repeat('a', 511) . 'B...', $exception->getMessage());
+        self::assertStringNotContainsString('Z', $exception->getMessage());
+    }
+
+    public function testStreamErrorsUseTheGivenStatus(): void
+    {
+        $exception = $this->mapper->mapStreamError('POST', '/stream', 'store', 422, 'validation_error', 'bad tuple');
+
+        self::assertInstanceOf(\Curentis\OpenFga\Exception\FgaApiValidationException::class, $exception);
+        self::assertSame(422, $exception->statusCode);
+        self::assertStringContainsString('bad tuple', $exception->getMessage());
+    }
 }

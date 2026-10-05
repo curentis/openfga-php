@@ -10,15 +10,22 @@ use Curentis\OpenFga\Credentials\ClientCredentials;
 use Curentis\OpenFga\Credentials\TokenProvider;
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
 use Curentis\OpenFga\Http\RetryPolicy;
+use Curentis\OpenFga\Observability\SdkTelemetry;
+use Curentis\OpenFga\Observability\TokenRefreshed;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\RecordingDispatcher;
+use Curentis\OpenFga\Tests\Support\RecordingLogger;
 use Curentis\OpenFga\Tests\Support\RsaPrivateKeyFixture;
 use Curentis\OpenFga\Tests\Support\SimpleArrayCache;
+use Curentis\OpenFga\Tests\Support\TestNetworkException;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -45,7 +52,7 @@ final class TokenProviderTest extends TestCase
         $mock->addResponse(new Response(200, [], '{"access_token":"fresh","expires_in":3600}'));
         $cache = new SimpleArrayCache();
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
-        $cache->set($key, 'stale|' . (self::NOW - 10), 3600);
+        $cache->set($key, json_encode(['token' => 'stale', 'expiresAt' => self::NOW - 10], JSON_THROW_ON_ERROR), 3600);
 
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
         self::assertSame('fresh', $provider->getAccessToken());
@@ -152,14 +159,17 @@ final class TokenProviderTest extends TestCase
         $provider->getAccessToken();
         $key = 'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience');
         $stored = $cache->get($key);
-        self::assertSame('cached-ttl|' . (self::NOW + 3600 - 300 - 59), $stored);
+        self::assertSame(
+            json_encode(['token' => 'cached-ttl', 'expiresAt' => self::NOW + 3600 - 300 - 59], JSON_THROW_ON_ERROR),
+            $stored,
+        );
         self::assertSame(3600 - 300 - 59, $cache->lastTtlSecondsFor($key));
     }
 
     public function testCacheTtlFloorsAtOneSecond(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], '{"access_token":"cached-floor","expires_in":359}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"cached-floor","expires_in":1}'));
         $cache = new SimpleArrayCache();
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
 
@@ -203,7 +213,7 @@ final class TokenProviderTest extends TestCase
         $mock = new MockClient();
         $cache = new SimpleArrayCache();
         $expiresAt = self::NOW + 3600;
-        $cache->set('openfga_token_' . hash('sha256', 'https://issuer.example|client|audience'), 'cached|' . $expiresAt, 3600);
+        $cache->set('openfga_token_' . hash('sha256', 'https://issuer.example|client|audience'), json_encode(['token' => 'cached', 'expiresAt' => $expiresAt], JSON_THROW_ON_ERROR), 3600);
 
         $provider = $this->provider($mock, $this->clientCredentials(), $cache);
         self::assertSame('cached', $provider->getAccessToken());
@@ -261,7 +271,7 @@ final class TokenProviderTest extends TestCase
         $cache = new SimpleArrayCache();
         $cache->set(
             'openfga_token_' . hash('sha256', 'https://issuer.example|client|audience'),
-            'a|' . (self::NOW + 3600),
+            json_encode(['token' => 'a', 'expiresAt' => self::NOW + 3600], JSON_THROW_ON_ERROR),
             3600,
         );
 
@@ -341,8 +351,163 @@ final class TokenProviderTest extends TestCase
         $mock->addResponse(new Response(401, [], '{"code":"invalid_client","message":"nope"}'));
         $provider = $this->provider($mock, $this->clientCredentials());
 
-        $this->expectException(\Curentis\OpenFga\Exception\FgaApiAuthenticationException::class);
+        $this->expectException(FgaTokenExchangeException::class);
         $provider->getAccessToken();
+    }
+
+    public function testOauthErrorDescriptionIsSurfaced(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(401, [], '{"error":"invalid_client","error_description":"bad secret"}'));
+        $provider = $this->provider($mock, new ClientCredentials(
+            'client',
+            'secret',
+            'https://issuer.example/custom/token',
+            'audience',
+        ));
+
+        try {
+            $provider->getAccessToken();
+            self::fail('Expected token exchange failure');
+        } catch (FgaTokenExchangeException $exception) {
+            self::assertSame('invalid_client', $exception->apiErrorCode);
+            self::assertSame('Token endpoint rejected the client (bad secret).', $exception->getMessage());
+            self::assertSame('bad secret', $exception->apiErrorMessage);
+            self::assertSame('/custom/token', $exception->endpoint);
+        }
+    }
+
+    public function testOauthErrorCodeIsUsedWhenDescriptionIsMissing(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(400, [], '{"error":"invalid_client"}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        try {
+            $provider->getAccessToken();
+            self::fail('Expected token exchange failure');
+        } catch (FgaTokenExchangeException $exception) {
+            self::assertSame('Token endpoint request failed (invalid_client).', $exception->getMessage());
+            self::assertSame('invalid_client', $exception->apiErrorCode);
+        }
+    }
+
+    public function testNonObjectOauthErrorBodyFallsBackToTheTransportMessage(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(400, [], 'null'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        $this->expectException(FgaTokenExchangeException::class);
+        $provider->getAccessToken();
+    }
+
+    public function testNonJsonTokenResponseIsRejected(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], 'nope'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        try {
+            $provider->getAccessToken();
+            self::fail('Expected token exchange failure');
+        } catch (FgaTokenExchangeException $exception) {
+            self::assertSame('Token endpoint returned a non-JSON response.', $exception->getMessage());
+        }
+    }
+
+    public function testNetworkFailureDuringTokenExchangeIsWrapped(): void
+    {
+        $provider = $this->provider(new ThrowingTokenClient(), $this->clientCredentials());
+
+        try {
+            $provider->getAccessToken();
+            self::fail('Expected token exchange failure');
+        } catch (FgaTokenExchangeException $exception) {
+            self::assertSame(0, $exception->statusCode);
+        }
+    }
+
+    public function testTokenExchangeDoesNotRetryServerErrors(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(500, [], '{"message":"down"}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"tok","expires_in":3600}'));
+        $provider = $this->provider($mock, $this->clientCredentials(), maxRetry: 1);
+
+        try {
+            $provider->getAccessToken();
+            self::fail('Expected token exchange failure');
+        } catch (FgaTokenExchangeException) {
+            self::assertCount(1, $mock->getRequests());
+        }
+    }
+
+    public function testRefreshBufferDivisorsAreApplied(): void
+    {
+        self::assertSame(self::NOW + 89, $this->expiryFor(100));
+        self::assertSame(self::NOW + 17, $this->expiryFor(20));
+        self::assertSame(self::NOW + 68, $this->expiryFor(76));
+        self::assertSame(self::NOW + 1, $this->expiryFor(1));
+    }
+
+    public function testZeroJitterDoesNotConsumeTheRandomizer(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"first","expires_in":19}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"second","expires_in":20}'));
+        $provider = $this->provider(
+            $mock,
+            $this->clientCredentials(),
+            randomizer: new Randomizer(new Mt19937(2)),
+        );
+
+        self::assertSame('first', $provider->getAccessToken());
+        $provider->invalidate();
+        self::assertSame('second', $provider->getAccessToken());
+        self::assertSame(self::NOW + 18, $this->memoryExpiry($provider));
+    }
+
+    public function testShortLivedTokenIsReusedUntilItExpires(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"short","expires_in":60}'));
+        $provider = $this->provider($mock, $this->clientCredentials());
+
+        self::assertSame('short', $provider->getAccessToken());
+        self::assertSame('short', $provider->getAccessToken());
+        self::assertCount(1, $mock->getRequests());
+    }
+
+    public function testInvalidateDropsTheCachedToken(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"one","expires_in":3600}'));
+        $mock->addResponse(new Response(200, [], '{"access_token":"two","expires_in":3600}'));
+        $cache = new SimpleArrayCache();
+        $provider = $this->provider($mock, $this->clientCredentials(), $cache);
+
+        self::assertSame('one', $provider->getAccessToken());
+        $provider->invalidate();
+        self::assertSame('two', $provider->getAccessToken());
+        self::assertCount(2, $mock->getRequests());
+    }
+
+    public function testTokenRefreshIsObservable(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"access_token":"fresh","expires_in":3600}'));
+        $logger = new RecordingLogger();
+        $dispatcher = new RecordingDispatcher();
+        $provider = $this->provider(
+            $mock,
+            $this->clientCredentials(),
+            telemetry: new SdkTelemetry($logger, $dispatcher),
+        );
+
+        self::assertSame('fresh', $provider->getAccessToken());
+        self::assertInstanceOf(TokenRefreshed::class, $dispatcher->events[0]);
+        self::assertSame('openfga.token_refresh', $logger->records[0][1]);
     }
 
     private function lastTokenRequest(MockClient $mock): RequestInterface
@@ -359,13 +524,17 @@ final class TokenProviderTest extends TestCase
     }
 
     private function provider(
-        MockClient $mock,
+        ClientInterface $mock,
         ClientCredentials|ClientAssertion $credentials,
         ?SimpleArrayCache $cache = null,
+        ?SdkTelemetry $telemetry = null,
+        ?Randomizer $randomizer = null,
+        int $maxRetry = 0,
     ): TokenProvider {
         $factories = new Psr17Factory();
+        $randomizer ??= new Randomizer(new Mt19937(1));
         $retry = new RetryPolicy(
-            0,
+            $maxRetry,
             1,
             new FakeSleeper(),
             new FrozenClock(new \DateTimeImmutable('@' . self::NOW)),
@@ -379,8 +548,37 @@ final class TokenProviderTest extends TestCase
             $factories,
             $retry,
             new FrozenClock(new \DateTimeImmutable('@' . self::NOW)),
-            new Randomizer(new Mt19937(1)),
+            $randomizer,
             cache: $cache,
+            telemetry: $telemetry ?? new SdkTelemetry(),
         );
+    }
+
+    private function expiryFor(int $expiresIn): int
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], sprintf('{"access_token":"t","expires_in":%d}', $expiresIn)));
+        $provider = $this->provider($mock, $this->clientCredentials());
+        $provider->getAccessToken();
+
+        return $this->memoryExpiry($provider);
+    }
+
+    private function memoryExpiry(TokenProvider $provider): int
+    {
+        $memory = new \ReflectionProperty(TokenProvider::class, 'memoryToken');
+        $token = $memory->getValue($provider);
+        self::assertInstanceOf(AccessToken::class, $token);
+
+        return $token->expiresAtEpoch;
+    }
+}
+
+final class ThrowingTokenClient implements ClientInterface
+{
+    #[\Override]
+    public function sendRequest(RequestInterface $request): ResponseInterface
+    {
+        throw new TestNetworkException('reset', $request);
     }
 }

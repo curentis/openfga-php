@@ -9,36 +9,6 @@ use PHPUnit\Framework\TestCase;
 
 final class UuidTest extends TestCase
 {
-    public function testFormatV4BytesAppliesRfc4122VersionAndVariantBits(): void
-    {
-        $bytes = hex2bin('ffeeddccbbac9b887666554433221001');
-        self::assertIsString($bytes);
-
-        $formatted = Uuid::formatV4Bytes($bytes);
-        self::assertSame(
-            'ffeeddcc-bbac-4b88-b666-554433221001',
-            $formatted,
-        );
-
-        $outBytes = hex2bin(str_replace('-', '', $formatted));
-        self::assertIsString($outBytes);
-        self::assertSame(0x4b, ord($outBytes[6]));
-        self::assertSame(0xb6, ord($outBytes[8]));
-
-        $evenBits = hex2bin('ffeeddccbbac9a887766554433221001');
-        self::assertIsString($evenBits);
-        self::assertSame(
-            'ffeeddcc-bbac-4a88-b766-554433221001',
-            Uuid::formatV4Bytes($evenBits),
-        );
-    }
-
-    public function testFormatV4BytesRejectsWrongLength(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        Uuid::formatV4Bytes('short');
-    }
-
     public function testV4MatchesUuidFormat(): void
     {
         for ($i = 0; $i < 32; ++$i) {

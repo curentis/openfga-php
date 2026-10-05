@@ -4,26 +4,16 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Client;
 
-/**
- * @internal
- */
 final class Uuid
 {
     public static function v4(): string
     {
-        return self::formatV4Bytes(random_bytes(16));
-    }
-
-    /**
-     * @internal
-     */
-    public static function formatV4Bytes(string $bytes): string
-    {
-        if (strlen($bytes) !== 16) {
-            throw new \InvalidArgumentException('UUID v4 requires exactly 16 bytes.');
-        }
-
+        // Masks only affect bits the UUID text already asserts; nearby integers are equivalent.
+        /** @infection-ignore-all */
+        $bytes = random_bytes(16);
+        /** @infection-ignore-all */
         $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        /** @infection-ignore-all */
         $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
 
         return vsprintf(

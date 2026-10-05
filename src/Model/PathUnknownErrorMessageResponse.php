@@ -5,12 +5,12 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class PathUnknownErrorMessageResponse implements \JsonSerializable
 {
     public function __construct(
-        public ?NotFoundErrorCode $code = null,
+        public NotFoundErrorCode|string|null $code = null,
         public ?string $message = null
     ) {}
 
@@ -24,13 +24,10 @@ final readonly class PathUnknownErrorMessageResponse implements \JsonSerializabl
                 $code = null;
             } else {
                 if (!is_string($code)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'code'));
                 }
-                try {
-                    $code = NotFoundErrorCode::from($code);
-                } catch (\ValueError) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'code'));
-                }
+                $parsedcode = NotFoundErrorCode::tryFrom($code);
+                $code = $parsedcode instanceof \BackedEnum ? $parsedcode : $code;
             }
         }
         $message = null;
@@ -40,7 +37,7 @@ final readonly class PathUnknownErrorMessageResponse implements \JsonSerializabl
                 $message = null;
             } else {
                 if (!is_string($message)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'message'));
                 }
             }
         }
@@ -50,7 +47,7 @@ final readonly class PathUnknownErrorMessageResponse implements \JsonSerializabl
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['code' => $this->code?->value, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['code' => $this->code instanceof \BackedEnum ? $this->code->value : $this->code, 'message' => $this->message], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

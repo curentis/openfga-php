@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class BatchCheckSingleResult implements \JsonSerializable
 {
@@ -24,7 +24,7 @@ final readonly class BatchCheckSingleResult implements \JsonSerializable
                 $allowed = null;
             } else {
                 if (!is_bool($allowed)) {
-                    throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'allowed'));
                 }
             }
         }
@@ -35,7 +35,7 @@ final readonly class BatchCheckSingleResult implements \JsonSerializable
                 $error = null;
             } else {
                 if (!is_array($error)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'error'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'error'));
                 }
                 $error = CheckError::fromArray($error, ($path === '' ? '' : $path . '.') . 'error');
             }

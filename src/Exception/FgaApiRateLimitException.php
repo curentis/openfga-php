@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Exception;
 
-/** @internal */
 final class FgaApiRateLimitException extends FgaApiException
 {
     /**
@@ -22,6 +21,7 @@ final class FgaApiRateLimitException extends FgaApiException
         array $responseHeaders,
         public readonly ?int $retryAfterMs = null,
         ?\Throwable $previous = null,
+        string $responseBody = '',
     ) {
         parent::__construct(
             $message,
@@ -34,6 +34,7 @@ final class FgaApiRateLimitException extends FgaApiException
             $storeId,
             $responseHeaders,
             $previous,
+            $responseBody,
         );
     }
 }

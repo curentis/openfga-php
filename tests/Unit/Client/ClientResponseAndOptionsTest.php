@@ -11,6 +11,8 @@ use Curentis\OpenFga\Client\Options\RequestOptions;
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Options\TransactionOptions;
 use Curentis\OpenFga\Client\Options\WriteOptions;
+use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckItemResult;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Client\Response\ClientListRelationsResponse;
 use Curentis\OpenFga\Client\Response\ClientWriteResponse;
@@ -28,9 +30,13 @@ final class ClientResponseAndOptionsTest extends TestCase
         self::assertTrue($write->tupleResults[0]->success);
 
         $batch = new ClientBatchCheckResponse([
-            new BatchCheckSingleResult(allowed: true),
+            new ClientBatchCheckItemResult(
+                'c1',
+                new ClientBatchCheckItem('user:u', 'viewer', 'doc:1'),
+                new BatchCheckSingleResult(allowed: true),
+            ),
         ]);
-        self::assertTrue($batch->results[0]->allowed);
+        self::assertTrue($batch->results[0]->result->allowed);
 
         self::assertSame(['viewer'], (new ClientListRelationsResponse(['viewer']))->relations);
     }
@@ -38,9 +44,14 @@ final class ClientResponseAndOptionsTest extends TestCase
     public function testOptionsDefaultsAreConstructible(): void
     {
         self::assertSame(50, (new BatchCheckOptions())->maxBatchSize);
+        self::assertSame(1, (new BatchCheckOptions())->maxParallelRequests);
         self::assertNull((new PaginationOptions())->pageSize);
-        self::assertSame(3, (new RetryOptions())->maxRetry);
-        self::assertSame(100, (new RetryOptions())->minWaitMs);
+        $retry = new RetryOptions();
+        self::assertSame(3, $retry->maxRetry);
+        self::assertSame(100, $retry->minWaitMs);
+        self::assertSame(10_000, $retry->maxElapsedMs);
+        self::assertSame(5_000, $retry->maxDelayMs);
+        self::assertSame(1, (new RetryOptions(maxElapsedMs: 1, maxDelayMs: 1))->maxDelayMs);
         self::assertFalse((new TransactionOptions())->disable);
         self::assertSame([], (new RequestOptions())->headers);
         self::assertNull((new ConflictOptions())->onDuplicateWrites);
@@ -107,5 +118,25 @@ final class ClientResponseAndOptionsTest extends TestCase
     public function testBatchCheckOptionsAcceptsMinimumBatchSize(): void
     {
         self::assertSame(1, (new BatchCheckOptions(maxBatchSize: 1))->maxBatchSize);
+    }
+
+    public function testBatchCheckOptionsRejectsParallelismOutsideTheCap(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new BatchCheckOptions(maxParallelRequests: 0);
+    }
+
+    public function testBatchCheckOptionsRejectsParallelismAboveTheCap(): void
+    {
+        $this->expectException(FgaValidationException::class);
+        new BatchCheckOptions(maxParallelRequests: BatchCheckOptions::MAX_PARALLEL_REQUESTS + 1);
+    }
+
+    public function testBatchCheckOptionsAcceptsTheParallelCap(): void
+    {
+        self::assertSame(
+            BatchCheckOptions::MAX_PARALLEL_REQUESTS,
+            (new BatchCheckOptions(maxParallelRequests: BatchCheckOptions::MAX_PARALLEL_REQUESTS))->maxParallelRequests,
+        );
     }
 }

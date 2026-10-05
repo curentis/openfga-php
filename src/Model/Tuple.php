@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Tuple implements \JsonSerializable
 {
@@ -18,17 +18,17 @@ final readonly class Tuple implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('key', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'key'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'key'));
         }
         if (!is_array($data['key'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'key'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'key'));
         }
         $key = TupleKey::fromArray($data['key'], ($path === '' ? '' : $path . '.') . 'key');
         if (!array_key_exists('timestamp', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'timestamp'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'timestamp'));
         }
         if (!is_string($data['timestamp'])) {
-            throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'timestamp'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'timestamp'));
         }
         $timestamp = new \DateTimeImmutable($data['timestamp']);
         return new self(key: $key, timestamp: $timestamp);

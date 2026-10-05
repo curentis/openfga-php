@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class WriteBody implements \JsonSerializable
 {
@@ -25,7 +25,7 @@ final readonly class WriteBody implements \JsonSerializable
                 $authorizationModelId = null;
             } else {
                 if (!is_string($authorizationModelId)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
                 }
             }
         }
@@ -36,7 +36,7 @@ final readonly class WriteBody implements \JsonSerializable
                 $deletes = null;
             } else {
                 if (!is_array($deletes)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'deletes'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'deletes'));
                 }
                 $deletes = WriteRequestDeletes::fromArray($deletes, ($path === '' ? '' : $path . '.') . 'deletes');
             }
@@ -48,7 +48,7 @@ final readonly class WriteBody implements \JsonSerializable
                 $writes = null;
             } else {
                 if (!is_array($writes)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'writes'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'writes'));
                 }
                 $writes = WriteRequestWrites::fromArray($writes, ($path === '' ? '' : $path . '.') . 'writes');
             }

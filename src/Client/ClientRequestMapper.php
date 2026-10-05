@@ -65,7 +65,7 @@ final class ClientRequestMapper
             );
             $writes = new WriteRequestWrites(
                 tupleKeys: $tupleKeys,
-                onDuplicate: $conflict->onDuplicateWrites,
+                onDuplicate: $conflict->onDuplicateWrites?->value,
             );
         }
 
@@ -81,7 +81,7 @@ final class ClientRequestMapper
             );
             $deletes = new WriteRequestDeletes(
                 tupleKeys: $tupleKeys,
-                onMissing: $conflict->onMissingDeletes,
+                onMissing: $conflict->onMissingDeletes?->value,
             );
         }
 
