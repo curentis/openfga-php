@@ -90,16 +90,18 @@ final class ErrorMapper
             $endpoint,
             $storeId,
             $headers,
+            null,
+            $responseBody,
         ];
 
         if ($statusCode === 422 || $statusCode === 400) {
-            return new FgaApiValidationException(...$args, responseBody: $responseBody);
+            return new FgaApiValidationException(...$args);
         }
         if ($statusCode === 401 || $statusCode === 403) {
-            return new FgaApiAuthenticationException(...$args, responseBody: $responseBody);
+            return new FgaApiAuthenticationException(...$args);
         }
         if ($statusCode === 404) {
-            return new FgaApiNotFoundException(...$args, responseBody: $responseBody);
+            return new FgaApiNotFoundException(...$args);
         }
         if ($statusCode === 429) {
             return new FgaApiRateLimitException(
@@ -120,10 +122,10 @@ final class ErrorMapper
         // 400, 401, 403, 404, 422, and 429 are returned above, so 400 is not this boundary.
         /** @infection-ignore-all */
         if ($statusCode >= 400 && $statusCode < 500) {
-            return new FgaApiException(...$args, responseBody: $responseBody);
+            return new FgaApiException(...$args);
         }
 
-        return new FgaApiInternalException(...$args, responseBody: $responseBody);
+        return new FgaApiInternalException(...$args);
     }
 
     private function formatMessage(

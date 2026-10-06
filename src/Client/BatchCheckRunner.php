@@ -56,12 +56,13 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
         $batchSize = $options->maxBatchSize;
         $chunks = array_chunk($prepared, $batchSize);
         $api = $retry !== null ? $this->api->withCallOptions($retry) : $this->api;
-        $useParallel = $this->transport !== null
+        $transport = $this->transport;
+        $useParallel = $transport !== null
             && $options->maxParallelRequests > 1
-            && $this->transport->supportsParallel();
+            && $transport->supportsParallel();
 
         if ($useParallel) {
-            $responses = $this->sendParallel($this->transport, $storeId, $chunks, $authorizationModelId, $consistency, $headers, $options->maxParallelRequests);
+            $responses = $this->sendParallel($transport, $storeId, $chunks, $authorizationModelId, $consistency, $headers, $options->maxParallelRequests);
         } else {
             $responses = [];
             foreach ($chunks as $chunk) {
