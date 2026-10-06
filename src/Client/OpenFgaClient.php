@@ -233,7 +233,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     #[\Override]
     public function listRelations(ClientListRelationsRequest $request, ?BatchCheckOptions $batch = null, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ClientListRelationsResponse
     {
-        $relations = array_values(array_unique($request->relations));
+        $relations = array_unique($request->relations);
         $checks = [];
         foreach ($relations as $relation) {
             $checks[] = new ClientBatchCheckItem(
@@ -244,15 +244,15 @@ final class OpenFgaClient implements OpenFgaClientInterface
         }
 
         $batchResponse = $this->batchCheck($checks, $batch, $consistency, $options);
-        $allowed = [];
-        foreach ($relations as $index => $relation) {
-            $result = $batchResponse->results[$index] ?? null;
-            if ($result !== null && $result->result->allowed === true) {
-                $allowed[] = $relation;
-            }
+        $granted = [];
+        foreach ($batchResponse->results as $result) {
+            $granted[$result->check->relation] = $result->result->allowed === true;
         }
 
-        return new ClientListRelationsResponse($allowed);
+        return new ClientListRelationsResponse(array_values(array_filter(
+            $relations,
+            static fn(string $relation): bool => $granted[$relation] ?? false,
+        )));
     }
 
     #[\Override]
@@ -294,7 +294,18 @@ final class OpenFgaClient implements OpenFgaClientInterface
         $storeId = $this->requireStoreId($options);
         $response = $this->apiFor($options)->streamedListObjects($storeId, $body, $this->headers($options));
         $endpoint = '/stores/' . rawurlencode($storeId) . '/streamed-list-objects';
-        foreach (NdjsonStream::decode($response->getBody(), 8192, 'POST', $endpoint, $storeId) as $line) {
+
+        return $this->streamedObjects(NdjsonStream::decode($response->getBody(), 8192, 'POST', $endpoint, $storeId));
+    }
+
+    /**
+     * @param \Generator<int, array<string, mixed>> $lines
+     *
+     * @return \Generator<int, string>
+     */
+    private function streamedObjects(\Generator $lines): \Generator
+    {
+        foreach ($lines as $line) {
             /** @var mixed $maybeResult */
             $maybeResult = $line['result'] ?? null;
             if (is_array($maybeResult) && isset($maybeResult['object']) && is_string($maybeResult['object'])) {
@@ -348,6 +359,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
         array $query = [],
         mixed $body = null,
         ?RequestOptions $options = null,
+        ?bool $idempotent = null,
     ): ResponseInterface {
         $normalizedPathParams = $this->normalizePathParams($pathParams);
         $normalizedQuery = $this->normalizeQueryParams($query);
@@ -362,6 +374,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
             $this->headers($options),
             $this->storeId($options),
             $options?->retry,
+            $idempotent ?? self::isIdempotentRequest($method, $expandedPath),
         );
     }
 
@@ -376,10 +389,23 @@ final class OpenFgaClient implements OpenFgaClientInterface
         array $query = [],
         mixed $body = null,
         ?RequestOptions $options = null,
+        ?bool $idempotent = null,
     ): \Generator {
-        $response = $this->executeApiRequest($method, $path, $pathParams, $query, $body, $options);
+        $response = $this->executeApiRequest($method, $path, $pathParams, $query, $body, $options, $idempotent);
+        $endpoint = PathTemplate::expand($path, $this->normalizePathParams($pathParams));
 
-        yield from NdjsonStream::decode($response->getBody());
+        return NdjsonStream::decode($response->getBody(), 8192, strtoupper($method), $endpoint, $this->storeId($options));
+    }
+
+    private static function isIdempotentRequest(string $method, string $path): bool
+    {
+        $method = strtoupper($method);
+        if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return true;
+        }
+
+        return $method === 'POST'
+            && preg_match('#/(check|batch-check|expand|list-objects|streamed-list-objects|list-users|read)$#', $path) === 1;
     }
 
     private function apiFor(?RequestOptions $options): OpenFgaApiInterface
@@ -395,7 +421,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     private function requireStoreId(?RequestOptions $options): string
     {
         $storeId = $this->storeId($options);
-        if ($storeId === null || $storeId === '') {
+        if ($storeId === null) {
             throw new FgaRequiredParamException('storeId');
         }
 
@@ -405,7 +431,7 @@ final class OpenFgaClient implements OpenFgaClientInterface
     private function requireAuthorizationModelId(?RequestOptions $options): string
     {
         $modelId = $this->authorizationModelId($options);
-        if ($modelId === null || $modelId === '') {
+        if ($modelId === null) {
             throw new FgaRequiredParamException('authorizationModelId');
         }
 

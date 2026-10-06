@@ -6,10 +6,10 @@ namespace Curentis\OpenFga\Credentials;
 
 interface TokenCacheCodec
 {
-    public function encode(string $accessToken, int $expiresAtEpoch): string;
+    public function encode(AccessToken $token): string;
 
     /**
-     * @return array{0: string, 1: int}|null
+     * Returns null for anything it cannot read, so a corrupt or foreign entry triggers a refresh.
      */
-    public function decode(string $payload): ?array;
+    public function decode(string $payload): ?AccessToken;
 }

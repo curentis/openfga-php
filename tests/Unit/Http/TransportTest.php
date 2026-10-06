@@ -6,18 +6,33 @@ namespace Curentis\OpenFga\Tests\Unit\Http;
 
 use Curentis\OpenFga\Credentials\ApiToken;
 use Curentis\OpenFga\Credentials\ClientCredentials;
+use Curentis\OpenFga\Credentials\NoCredentials;
 use Curentis\OpenFga\Exception\FgaApiAuthenticationException;
+use Curentis\OpenFga\Exception\FgaApiException;
+use Curentis\OpenFga\Exception\FgaApiInternalException;
+use Curentis\OpenFga\Exception\FgaApiNotFoundException;
+use Curentis\OpenFga\Exception\FgaApiValidationException;
+use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaResponseDecodeException;
+use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Http\AuthorizationHeaderProvider;
 use Curentis\OpenFga\Http\ConcurrentSenderInterface;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Curentis\OpenFga\Http\Transport;
+use Curentis\OpenFga\Http\TransportCall;
+use Curentis\OpenFga\Observability\RequestFinished;
+use Curentis\OpenFga\Observability\RequestOutcome;
+use Curentis\OpenFga\Observability\SdkTelemetry;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\ManualClock;
+use Curentis\OpenFga\Tests\Support\RecordingDispatcher;
+use Curentis\OpenFga\Tests\Support\TestNetworkException;
 use Curentis\OpenFga\Version;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -323,50 +338,277 @@ final class TransportTest extends TestCase
         self::assertCount(2, $mock->getRequests());
     }
 
-    public function testSendAllWithOneSlotStaysOnTheRetryingPath(): void
-    {
-        $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], 'ok'));
-        $sender = new RecordingParallelSender();
-        $transport = $this->transportWithSender($mock, $sender, 0);
-        $request = (new Psr17Factory())->createRequest('GET', 'http://localhost:8080/stores');
-
-        $responses = $transport->sendAll([$request], 1);
-
-        self::assertSame(0, $sender->calls);
-        self::assertSame('ok', (string) $responses[0]->getBody());
-    }
-
-    public function testSendAllRetriesWhenTheSenderCannotRunInParallel(): void
+    public function testSendJsonAllRunsSequentiallyWithoutAConcurrentSender(): void
     {
         $mock = new MockClient();
         $mock->addResponse(new Response(500, [], '{}'));
-        $mock->addResponse(new Response(200, [], 'ok'));
+        $mock->addResponse(new Response(200, [], '{"n":1}'));
+        $mock->addResponse(new Response(200, [], '{"n":2}'));
         $transport = $this->transportWithRetry($mock, 1);
-        $request = (new Psr17Factory())->createRequest('GET', 'http://localhost:8080/stores');
 
-        $responses = $transport->sendAll([$request], 4);
+        $decoded = $transport->sendJsonAll([new TransportCall('GET', '/stores'), new TransportCall('GET', '/stores')], 4);
 
-        self::assertSame('ok', (string) $responses[0]->getBody());
-        self::assertCount(2, $mock->getRequests());
+        self::assertSame([['n' => 1], ['n' => 2]], $decoded);
+        self::assertCount(3, $mock->getRequests());
     }
 
-    public function testSendAllUsesSequentialFallbackAndAllowsAnEmptyBatch(): void
+    public function testSendJsonAllWithOneSlotSkipsTheConcurrentSender(): void
     {
         $mock = new MockClient();
-        $mock->addResponse(new Response(200, [], 'a'));
-        $mock->addResponse(new Response(200, [], 'b'));
-        $transport = $this->transport($mock);
+        $mock->addResponse(new Response(200, [], '{"ok":true}'));
+        $sender = new RecordingParallelSender([new Response(200, [], '{"parallel":true}')]);
+        $transport = $this->transportWithSender($mock, $sender);
+
+        self::assertSame([['ok' => true]], $transport->sendJsonAll([new TransportCall('GET', '/stores')], 1));
+        self::assertSame([], $sender->batches);
+    }
+
+    public function testSendJsonAllDecodesConcurrentSuccessesAndReportsThem(): void
+    {
+        $dispatcher = new RecordingDispatcher();
+        $sender = new RecordingParallelSender([
+            new Response(200, [], '{"a":1}'),
+            new Response(200, [], ''),
+        ]);
+        $transport = $this->transportWithSender(new MockClient(), $sender, telemetry: new SdkTelemetry(dispatcher: $dispatcher));
+
+        $decoded = $transport->sendJsonAll([
+            new TransportCall('POST', '/stores/{store_id}/batch-check', ['store_id' => 's1'], [], ['checks' => []], ['X-Test' => '1'], 's1'),
+            new TransportCall('GET', '/stores'),
+        ], 3);
+
+        self::assertSame([['a' => 1], []], $decoded);
+        self::assertSame([3], $sender->parallelism);
+        self::assertSame('/stores/s1/batch-check', $sender->batches[0][0]->getUri()->getPath());
+        self::assertSame('1', $sender->batches[0][0]->getHeaderLine('X-Test'));
+        self::assertSame('{"checks":[]}', (string) $sender->batches[0][0]->getBody());
+        $finished = $dispatcher->events[0];
+        self::assertInstanceOf(RequestFinished::class, $finished);
+        self::assertSame('/stores/{store_id}/batch-check', $finished->route);
+        self::assertSame('s1', $finished->storeId);
+        self::assertSame(200, $finished->statusCode);
+        self::assertSame(1, $finished->attempts);
+        self::assertSame(RequestOutcome::Success, $finished->outcome);
+    }
+
+    public function testConcurrentValidationErrorIsMappedWithoutResending(): void
+    {
+        $mock = new MockClient();
+        $dispatcher = new RecordingDispatcher();
+        $sender = new RecordingParallelSender([
+            new Response(400, [], '{"code":"validation_error","message":"type not found"}'),
+        ]);
+        $transport = $this->transportWithSender($mock, $sender, telemetry: new SdkTelemetry(dispatcher: $dispatcher));
+
+        try {
+            $transport->sendJsonAll([new TransportCall('POST', '/stores/{store_id}/batch-check', ['store_id' => 's1'], storeId: 's1')], 2);
+            self::fail('Expected a validation exception');
+        } catch (FgaApiValidationException $exception) {
+            self::assertSame('POST', $exception->method);
+            self::assertSame('/stores/s1/batch-check', $exception->endpoint);
+            self::assertSame('s1', $exception->storeId);
+            self::assertSame('type not found', $exception->apiErrorMessage);
+        }
+        self::assertCount(0, $mock->getRequests());
+        self::assertInstanceOf(RequestFinished::class, $dispatcher->events[0]);
+        self::assertSame(400, $dispatcher->events[0]->statusCode);
+        self::assertSame(1, $dispatcher->events[0]->attempts);
+        self::assertSame(RequestOutcome::HttpError, $dispatcher->events[0]->outcome);
+    }
+
+    public function testConcurrentRedirectStatusIsNotTreatedAsSuccess(): void
+    {
+        $sender = new RecordingParallelSender([new Response(300, [], '{}')]);
+        $transport = $this->transportWithSender(new MockClient(), $sender);
+
+        try {
+            $transport->sendJsonAll([new TransportCall('GET', '/stores')], 2);
+            self::fail('Expected an API exception');
+        } catch (FgaApiException $exception) {
+            self::assertSame(300, $exception->statusCode);
+        }
+    }
+
+    public function testConcurrentConflictIsMappedWithoutResending(): void
+    {
+        $sender = new RecordingParallelSender([new Response(409, ['Retry-After' => '2'], '{}')]);
+        $transport = $this->transportWithSender(new MockClient(), $sender);
+
+        try {
+            $transport->sendJsonAll([new TransportCall('POST', '/stores', idempotent: false)], 2);
+            self::fail('Expected an API exception');
+        } catch (FgaApiException $exception) {
+            self::assertSame(409, $exception->statusCode);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{0: int}>
+     */
+    public static function resendableStatusProvider(): iterable
+    {
+        yield '401' => [401];
+        yield '429' => [429];
+        yield '500' => [500];
+        yield '503' => [503];
+    }
+
+    #[DataProvider('resendableStatusProvider')]
+    public function testConcurrentRetryableStatusIsResentThroughTheRetryPath(int $status): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"ok":true}'));
+        $sender = new RecordingParallelSender([new Response($status, [], '{}')]);
+        $transport = $this->transportWithSender($mock, $sender);
+
+        $decoded = $transport->sendJsonAll([new TransportCall('POST', '/stores/{store_id}/batch-check', ['store_id' => 's1'])], 2);
+
+        self::assertSame([['ok' => true]], $decoded);
+        self::assertSame('/stores/s1/batch-check', $this->lastPath($mock));
+    }
+
+    public function testConcurrentServerErrorOnANonIdempotentCallIsNotResent(): void
+    {
+        $mock = new MockClient();
+        $transport = $this->transportWithSender($mock, new RecordingParallelSender([new Response(500, [], '{}')]));
+
+        $this->expectException(FgaApiInternalException::class);
+        try {
+            $transport->sendJsonAll([new TransportCall('POST', '/stores', idempotent: false)], 2);
+        } finally {
+            self::assertCount(0, $mock->getRequests());
+        }
+    }
+
+    public function testConcurrentRateLimitOnANonIdempotentCallIsResent(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"id":"x"}'));
+        $transport = $this->transportWithSender($mock, new RecordingParallelSender([new Response(429, [], '{}')]));
+
+        self::assertSame([['id' => 'x']], $transport->sendJsonAll([new TransportCall('POST', '/stores', idempotent: false)], 2));
+    }
+
+    public function testConcurrentTransportFailureIsResentForIdempotentCalls(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"ok":true}'));
+        $transport = $this->transportWithSender($mock, new RecordingParallelSender([new TestNetworkException('reset')]));
+
+        self::assertSame([['ok' => true]], $transport->sendJsonAll([new TransportCall('GET', '/stores')], 2));
+        self::assertCount(1, $mock->getRequests());
+    }
+
+    public function testMissingConcurrentOutcomeIsResent(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"second":true}'));
+        $transport = $this->transportWithSender($mock, new RecordingParallelSender([new Response(200, [], '{"first":true}')]));
+
+        $decoded = $transport->sendJsonAll([new TransportCall('GET', '/stores'), new TransportCall('GET', '/healthz')], 2);
+
+        self::assertSame([['first' => true], ['second' => true]], $decoded);
+        self::assertSame('/healthz', $this->lastPath($mock));
+    }
+
+    public function testConcurrentTransportFailureOnANonIdempotentCallIsWrapped(): void
+    {
+        $mock = new MockClient();
+        $dispatcher = new RecordingDispatcher();
+        $root = new TestNetworkException('reset');
+        $transport = $this->transportWithSender(
+            $mock,
+            new RecordingParallelSender([$root]),
+            telemetry: new SdkTelemetry(dispatcher: $dispatcher),
+        );
+
+        try {
+            $transport->sendJsonAll([new TransportCall('POST', '/stores', idempotent: false)], 2);
+            self::fail('Expected a network exception');
+        } catch (FgaNetworkException $exception) {
+            self::assertSame($root, $exception->getPrevious());
+            self::assertSame('OpenFGA API request failed (POST /stores).', $exception->getMessage());
+            self::assertSame('POST', $exception->method);
+            self::assertSame('/stores', $exception->endpoint);
+        }
+        self::assertCount(0, $mock->getRequests());
+        self::assertInstanceOf(RequestFinished::class, $dispatcher->events[0]);
+        self::assertNull($dispatcher->events[0]->statusCode);
+        self::assertSame(1, $dispatcher->events[0]->attempts);
+        self::assertSame(RequestOutcome::NetworkError, $dispatcher->events[0]->outcome);
+    }
+
+    public function testConcurrentNonJsonSuccessRaisesADecodeException(): void
+    {
+        $transport = $this->transportWithSender(new MockClient(), new RecordingParallelSender([new Response(200, [], '<html>')]));
+
+        $this->expectException(FgaResponseDecodeException::class);
+        $this->expectExceptionMessage('OpenFGA API returned a non-JSON response (GET /stores).');
+        $transport->sendJsonAll([new TransportCall('GET', '/stores')], 2);
+    }
+
+    public function testConcurrentDurationCoversTheBatch(): void
+    {
+        $clock = new ManualClock();
+        $dispatcher = new RecordingDispatcher();
+        $sender = new RecordingParallelSender([new Response(200, [], '{}')], $clock, 25);
+        $transport = $this->transportWithSender(
+            new MockClient(),
+            $sender,
+            telemetry: new SdkTelemetry(dispatcher: $dispatcher),
+            clock: $clock,
+        );
+
+        $transport->sendJsonAll([new TransportCall('GET', '/stores')], 2);
+
+        self::assertInstanceOf(RequestFinished::class, $dispatcher->events[0]);
+        self::assertSame(25, $dispatcher->events[0]->durationMs);
+    }
+
+    public function testErrorEndpointIncludesTheApiUrlBasePath(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(404, [], '{}'));
         $factories = new Psr17Factory();
+        $transport = new Transport(
+            'http://localhost:8080/fga/',
+            [],
+            $mock,
+            $factories,
+            $factories,
+            $factories,
+            new RetryPolicy(0, 1, new FakeSleeper(), new FrozenClock(new \DateTimeImmutable('@1700000000')), new Randomizer(new Mt19937(1))),
+            new AuthorizationHeaderProvider(new NoCredentials()),
+        );
 
-        $responses = $transport->sendAll([
-            $factories->createRequest('GET', 'http://localhost:8080/stores'),
-            $factories->createRequest('GET', 'http://localhost:8080/healthz'),
-        ], 4);
+        try {
+            $transport->send('GET', '/stores/{store_id}', ['store_id' => 's1']);
+            self::fail('Expected a not-found exception');
+        } catch (FgaApiNotFoundException $exception) {
+            self::assertSame('/fga/stores/s1', $exception->endpoint);
+        }
+        self::assertSame('/fga/stores/s1', $this->lastPath($mock));
+    }
 
-        self::assertCount(2, $responses);
-        self::assertFalse($transport->supportsParallel());
-        self::assertSame([], $transport->sendAll([], 4));
+    public function testUnencodableBodyIsAValidationError(): void
+    {
+        $mock = new MockClient();
+        $transport = $this->transport($mock);
+
+        $this->expectException(FgaValidationException::class);
+        try {
+            $transport->send('POST', '/stores', [], [], ['name' => "bad\xB1"]);
+        } finally {
+            self::assertCount(0, $mock->getRequests());
+        }
+    }
+
+    private function lastPath(MockClient $mock): string
+    {
+        $request = $mock->getLastRequest();
+        self::assertInstanceOf(RequestInterface::class, $request);
+
+        return $request->getUri()->getPath();
     }
 
     private function transportWithProvider(MockClient $mock, AuthorizationHeaderProvider $provider): Transport
@@ -437,8 +679,13 @@ final class TransportTest extends TestCase
         );
     }
 
-    private function transportWithSender(MockClient $mock, ConcurrentSenderInterface $sender, int $maxRetry): Transport
-    {
+    private function transportWithSender(
+        MockClient $mock,
+        ConcurrentSenderInterface $sender,
+        int $maxRetry = 0,
+        ?SdkTelemetry $telemetry = null,
+        ?ManualClock $clock = null,
+    ): Transport {
         $factories = new Psr17Factory();
 
         return new Transport(
@@ -455,8 +702,10 @@ final class TransportTest extends TestCase
                 new FrozenClock(new \DateTimeImmutable('@1700000000')),
                 new Randomizer(new Mt19937(1)),
             ),
-            new AuthorizationHeaderProvider(new \Curentis\OpenFga\Credentials\NoCredentials()),
+            new AuthorizationHeaderProvider(new NoCredentials()),
             $sender,
+            telemetry: $telemetry ?? new SdkTelemetry(),
+            clock: $clock ?? new ManualClock(),
         );
     }
 }
@@ -478,24 +727,28 @@ final class RecordingUriFactory implements UriFactoryInterface
 
 final class RecordingParallelSender implements ConcurrentSenderInterface
 {
-    public int $calls = 0;
+    /** @var list<int> */
+    public array $parallelism = [];
 
-    #[\Override]
-    public function supportsParallel(): bool
-    {
-        return true;
-    }
+    /** @var list<list<RequestInterface>> */
+    public array $batches = [];
 
     /**
-     * @param list<RequestInterface> $requests
-     *
-     * @return list<ResponseInterface>
+     * @param list<ResponseInterface|\Throwable> $outcomes
      */
+    public function __construct(
+        private readonly array $outcomes,
+        private readonly ?ManualClock $clock = null,
+        private readonly int $elapsedMs = 0,
+    ) {}
+
     #[\Override]
     public function send(array $requests, int $maxParallel): array
     {
-        $this->calls++;
+        $this->parallelism[] = $maxParallel;
+        $this->batches[] = $requests;
+        $this->clock?->advanceMs($this->elapsedMs);
 
-        return [new Response(200, [], 'parallel')];
+        return $this->outcomes;
     }
 }

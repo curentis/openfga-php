@@ -80,7 +80,7 @@ php examples/quickstart.php
 | `credentials` | `ApiToken`, `ClientCredentials`, `ClientAssertion`, or `NoCredentials` |
 | `tokenCache` | Optional PSR-16 cache for OAuth access tokens |
 | `httpClient`, `requestFactory`, `streamFactory`, `uriFactory` | Override PSR-18 / PSR-17 discovery |
-| `retry` | `RetryOptions` (max retries, backoff, elapsed budget, per-attempt cap) |
+| `retry` | `RetryOptions` (max retries, backoff, wall-clock deadline, per-attempt cap) |
 | `defaultHeaders` | Headers sent on every request |
 | `componentFactory` | Custom write/batch-check runners and consistency body factory |
 | `tokenCacheKey` | Optional 32-byte sodium key that encrypts cached OAuth tokens |

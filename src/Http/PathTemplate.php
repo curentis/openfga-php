@@ -26,6 +26,9 @@ final class PathTemplate
                     throw new FgaValidationException(sprintf('Path parameter "%s" must not be null.', $name));
                 }
                 $encoded = rawurlencode((string) $value);
+                if ($encoded === '.' || $encoded === '..') {
+                    throw new FgaValidationException(sprintf('Path parameter "%s" must not be a dot segment.', $name));
+                }
                 $template = str_replace('{' . $name . '}', $encoded, $template);
             }
         }

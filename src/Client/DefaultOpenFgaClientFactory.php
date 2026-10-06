@@ -41,16 +41,8 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
         $uriFactory = $configuration->uriFactory ?? Psr17FactoryDiscovery::findUriFactory();
         $resolved = $configuration->withHttpStack($httpClient, $requestFactory, $streamFactory, $uriFactory);
 
-        $retryPolicy = new RetryPolicy(
-            $resolved->retry->maxRetry,
-            $resolved->retry->minWaitMs,
-            new SystemSleeper(),
-            $clock,
-            $randomizer,
-            maxElapsedMs: $resolved->retry->maxElapsedMs,
-            maxDelayMs: $resolved->retry->maxDelayMs,
-            telemetry: $resolved->telemetry,
-        );
+        $sleeper = new SystemSleeper();
+        $retryPolicy = RetryPolicy::fromOptions($resolved->retry, $sleeper, $clock, $randomizer, $resolved->telemetry);
 
         /** @var ?\Closure(): string $tokenResolver */
         $tokenResolver = null;
@@ -84,7 +76,7 @@ final class DefaultOpenFgaClientFactory implements OpenFgaClientFactoryInterface
         $transport = TransportFactory::create(
             $resolved,
             $clock,
-            new SystemSleeper(),
+            $sleeper,
             $randomizer,
             $tokenResolver,
             $retryPolicy,

@@ -7,16 +7,16 @@ namespace Curentis\OpenFga\Credentials;
 final class JsonTokenCacheCodec implements TokenCacheCodec
 {
     #[\Override]
-    public function encode(string $accessToken, int $expiresAtEpoch): string
+    public function encode(AccessToken $token): string
     {
         return json_encode(
-            ['token' => $accessToken, 'expiresAt' => $expiresAtEpoch],
+            ['token' => $token->accessToken, 'expiresAt' => $token->expiresAtEpoch, 'refreshAt' => $token->refreshAtEpoch],
             JSON_THROW_ON_ERROR,
         );
     }
 
     #[\Override]
-    public function decode(string $payload): ?array
+    public function decode(string $payload): ?AccessToken
     {
         try {
             /** @infection-ignore-all */
@@ -25,16 +25,25 @@ final class JsonTokenCacheCodec implements TokenCacheCodec
             return null;
         }
 
-        if (!is_array($decoded) || !isset($decoded['token'], $decoded['expiresAt']) || !is_string($decoded['token'])) {
+        if (!is_array($decoded) || !isset($decoded['token']) || !is_string($decoded['token'])) {
             return null;
         }
 
-        if (is_int($decoded['expiresAt'])) {
-            return [$decoded['token'], $decoded['expiresAt']];
+        $expiresAt = self::epoch($decoded['expiresAt'] ?? null);
+        if ($expiresAt === null) {
+            return null;
         }
 
-        if (is_string($decoded['expiresAt']) && ctype_digit($decoded['expiresAt'])) {
-            return [$decoded['token'], (int) $decoded['expiresAt']];
+        return new AccessToken($decoded['token'], $expiresAt, self::epoch($decoded['refreshAt'] ?? null));
+    }
+
+    private static function epoch(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
         }
 
         return null;

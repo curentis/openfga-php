@@ -36,7 +36,7 @@
     "require-dev": {
         "ergebnis/composer-normalize": "^2.44",
         "friendsofphp/php-cs-fixer": "^3.64",
-        "guzzlehttp/guzzle": "^7.9",
+        "guzzlehttp/guzzle": "^7.9 || ^8.0",
         "infection/infection": "^0.31",
         "league/openapi-psr7-validator": "^0.22",
         "nyholm/psr7": "^1.8",
@@ -90,7 +90,8 @@
             "@codegen:check",
             "@test:architecture",
             "@test:unit",
-            "@test:contract"
+            "@test:contract",
+            "@ignore-budget"
         ],
         "check:bootstrap": [
             "@composer validate --strict",
@@ -103,6 +104,7 @@
         "codegen:check": "@php tools/codegen/generate.php --check",
         "cs": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
+        "ignore-budget": "@php tools/ignore-budget.php",
         "phpstan": "phpstan analyse --memory-limit=1G",
         "psalm": "@php tools/run-psalm.php",
         "psalm:taint": "psalm --no-cache --taint-analysis --report=psalm-taint.sarif",

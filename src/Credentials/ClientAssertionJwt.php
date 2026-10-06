@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Credentials;
 
+use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Http\JsonBody;
+
 /**
  * @internal
  */
@@ -29,8 +32,8 @@ final class ClientAssertionJwt
             'exp' => $issuedAt + $ttlSeconds,
         ];
 
-        $headerJson = json_encode($header, JSON_THROW_ON_ERROR);
-        $payloadJson = json_encode($payload, JSON_THROW_ON_ERROR);
+        $headerJson = JsonBody::encode($header);
+        $payloadJson = JsonBody::encode($payload);
         $segments = [
             self::base64UrlEncode($headerJson),
             self::base64UrlEncode($payloadJson),
@@ -48,7 +51,7 @@ final class ClientAssertionJwt
         $signature = '';
         if (!openssl_sign($signingInput, $signature, $key, OPENSSL_ALGO_SHA256)) {
             // @codeCoverageIgnoreStart
-            throw new \RuntimeException('Failed to sign client assertion JWT.');
+            throw new FgaValidationException('Failed to sign the client assertion JWT with privateKeyPem.');
             // @codeCoverageIgnoreEnd
         }
 
@@ -59,7 +62,7 @@ final class ClientAssertionJwt
     {
         if (!is_string($value) || $value === '') {
             // @codeCoverageIgnoreStart
-            throw new \RuntimeException('OpenSSL returned an empty client assertion signature.');
+            throw new FgaValidationException('OpenSSL returned an empty client assertion signature.');
             // @codeCoverageIgnoreEnd
         }
 

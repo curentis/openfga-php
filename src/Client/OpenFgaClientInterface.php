@@ -89,7 +89,11 @@ interface OpenFgaClientInterface
 
     public function listObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListObjectsResponse;
 
-    /** @return \Generator<int, string> */
+    /**
+     * Sends the request when called; the returned generator only reads the stream.
+     *
+     * @return \Generator<int, string>
+     */
     public function streamedListObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): \Generator;
 
     public function listUsers(ListUsersBody $body, ?ConsistencyPreference $consistency = null, ?RequestOptions $options = null): ListUsersResponse;
@@ -100,6 +104,10 @@ interface OpenFgaClientInterface
     public function writeAssertions(array $assertions, ?RequestOptions $options = null): void;
 
     /**
+     * With `$idempotent = null`, GET/HEAD/OPTIONS and POSTs to the read endpoints (check, batch-check,
+     * expand, list-objects, streamed-list-objects, list-users, read) retry server and network errors.
+     * Anything else retries only 429.
+     *
      * @param array<array-key, mixed> $pathParams
      * @param array<array-key, mixed> $query
      */
@@ -110,11 +118,14 @@ interface OpenFgaClientInterface
         array $query = [],
         mixed $body = null,
         ?RequestOptions $options = null,
+        ?bool $idempotent = null,
     ): ResponseInterface;
 
     /**
      * @param array<array-key, mixed> $pathParams
      * @param array<array-key, mixed> $query
+     *
+     * Sends the request when called; the returned generator only reads the stream.
      *
      * @return \Generator<int, array<string, mixed>>
      */
@@ -125,5 +136,6 @@ interface OpenFgaClientInterface
         array $query = [],
         mixed $body = null,
         ?RequestOptions $options = null,
+        ?bool $idempotent = null,
     ): \Generator;
 }

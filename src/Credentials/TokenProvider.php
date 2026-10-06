@@ -8,20 +8,30 @@ use Curentis\OpenFga\Exception\FgaApiException;
 use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
 use Curentis\OpenFga\Http\JsonBody;
-use Curentis\OpenFga\Http\RetryPolicy;
+use Curentis\OpenFga\Http\RequestContext;
+use Curentis\OpenFga\Http\RetryPolicyInterface;
 use Curentis\OpenFga\Observability\SdkTelemetry;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\SimpleCache\CacheInterface;
 use Random\Randomizer;
 
 /**
+ * Fetches and caches OAuth access tokens.
+ *
+ * A token is replaced from its refresh point, which sits a proportional buffer before the server expiry.
+ * With a shared cache, the worker that starts a refresh sets a short-lived marker; other workers keep
+ * using the still-valid token until the marker clears instead of all refreshing at once.
+ *
  * @internal
  */
 final class TokenProvider
 {
+    private const int REFRESH_MARKER_SECONDS = 10;
+
     private ?AccessToken $memoryToken = null;
 
     public function __construct(
@@ -29,7 +39,7 @@ final class TokenProvider
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
-        private readonly RetryPolicy $retryPolicy,
+        private readonly RetryPolicyInterface $retryPolicy,
         private readonly ClockInterface $clock,
         private readonly Randomizer $randomizer,
         private readonly ?CacheInterface $cache = null,
@@ -48,15 +58,70 @@ final class TokenProvider
     public function getAccessToken(): string
     {
         $now = $this->clock->now()->getTimestamp();
-        $token = $this->loadValidToken($now);
-        if ($token !== null) {
+        $token = $this->currentToken($now);
+        if ($token !== null && (!$token->needsRefreshAt($now) || $this->refreshInProgress())) {
             return $token->accessToken;
         }
 
         return $this->refreshToken($now)->accessToken;
     }
 
+    private function currentToken(int $now): ?AccessToken
+    {
+        $memory = $this->memoryToken;
+        if ($memory !== null && !$memory->needsRefreshAt($now)) {
+            return $memory;
+        }
+
+        $cached = $this->cachedToken($now);
+        if ($cached !== null) {
+            $this->memoryToken = $cached;
+
+            return $cached;
+        }
+
+        return $memory !== null && !$memory->isExpiredAt($now) ? $memory : null;
+    }
+
+    private function cachedToken(int $now): ?AccessToken
+    {
+        if ($this->cache === null) {
+            return null;
+        }
+
+        $cached = $this->cache->get($this->cacheKey());
+        if (!is_string($cached) || $cached === '') {
+            return null;
+        }
+
+        $token = $this->cacheCodec->decode($cached);
+        if ($token === null || $token->isExpiredAt($now)) {
+            return null;
+        }
+
+        return $token;
+    }
+
+    private function refreshInProgress(): bool
+    {
+        return $this->cache !== null && $this->cache->has($this->refreshMarkerKey());
+    }
+
     private function refreshToken(int $now): AccessToken
+    {
+        if ($this->cache === null) {
+            return $this->fetchToken($now);
+        }
+
+        $this->cache->set($this->refreshMarkerKey(), '1', self::REFRESH_MARKER_SECONDS);
+        try {
+            return $this->fetchToken($now);
+        } finally {
+            $this->cache->delete($this->refreshMarkerKey());
+        }
+    }
+
+    private function fetchToken(int $now): AccessToken
     {
         $endpoint = $this->credentials->tokenEndpoint();
         $path = parse_url($endpoint, PHP_URL_PATH);
@@ -64,13 +129,10 @@ final class TokenProvider
         /** @infection-ignore-all */
         $endpointPath = is_string($path) && $path !== '' ? $path : '/oauth/token';
         try {
+            // Each attempt builds a new request, and a new assertion `jti`, so retrying is safe.
             $response = $this->retryPolicy->send(
                 fn() => $this->httpClient->sendRequest($this->buildTokenRequest($now)),
-                'POST',
-                $endpointPath,
-                null,
-                null,
-                false,
+                new RequestContext('POST', $endpointPath),
             );
         } catch (FgaApiException|FgaNetworkException $exception) {
             throw $this->tokenExchangeException($exception, $endpointPath);
@@ -80,24 +142,7 @@ final class TokenProvider
         try {
             $payload = JsonBody::decode((string) $response->getBody());
         } catch (\JsonException $exception) {
-            throw $this->tokenExchangeException(
-                new FgaTokenExchangeException(
-                    'Token endpoint returned a non-JSON response.',
-                    $status,
-                    null,
-                    'non-JSON token response',
-                    null,
-                    'POST',
-                    $endpointPath,
-                    null,
-                    [],
-                    IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                    $this->credentials->apiAudience,
-                    $this->credentials->clientId,
-                    $exception,
-                ),
-                $endpointPath,
-            );
+            throw $this->invalidResponse('Token endpoint returned a non-JSON response.', $status, 'non-JSON token response', $endpointPath, $exception);
         }
         $accessToken = isset($payload['access_token']) && is_string($payload['access_token'])
             ? $payload['access_token']
@@ -105,32 +150,23 @@ final class TokenProvider
         $expiresIn = self::expiresInSeconds($payload['expires_in'] ?? null);
 
         if ($accessToken === '' || $expiresIn < 1) {
-            throw new FgaTokenExchangeException(
+            throw $this->invalidResponse(
                 sprintf('Token endpoint returned an invalid token response (expires_in=%d).', $expiresIn),
                 $status,
-                null,
                 'missing access_token or expires_in',
-                null,
-                'POST',
-                '/oauth/token',
-                null,
-                [],
-                IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                $this->credentials->apiAudience,
-                $this->credentials->clientId,
+                $endpointPath,
             );
         }
 
-        $expiresAt = $this->expiryEpoch($now, $expiresIn);
-        $token = new AccessToken($accessToken, $expiresAt);
+        $token = $this->tokenFor($accessToken, $now, $expiresIn);
         $this->telemetry->tokenRefreshed($this->credentials->clientId);
         $this->memoryToken = $token;
-        $this->storeCache($token, $expiresAt);
+        $this->storeCache($token, $now);
 
         return $token;
     }
 
-    private function buildTokenRequest(int $now): \Psr\Http\Message\RequestInterface
+    private function buildTokenRequest(int $now): RequestInterface
     {
         $url = $this->credentials->tokenEndpoint();
         $fields = [
@@ -154,12 +190,11 @@ final class TokenProvider
         }
 
         $body = http_build_query($fields, '', '&', PHP_QUERY_RFC3986);
-        $request = $this->requestFactory->createRequest('POST', $url)
+
+        return $this->requestFactory->createRequest('POST', $url)
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
             ->withHeader('Accept', 'application/json')
             ->withBody($this->streamFactory->createStream($body));
-
-        return $request;
     }
 
     private static function expiresInSeconds(mixed $value): int
@@ -181,81 +216,79 @@ final class TokenProvider
 
     private function cacheKey(): string
     {
+        $credentials = $this->credentials;
         $material = implode(
             '|',
             [
-                IssuerUrl::normalize($this->credentials->apiTokenIssuer),
-                $this->credentials->clientId,
-                $this->credentials->apiAudience,
+                $credentials instanceof ClientCredentials ? 'client_secret' : 'client_assertion',
+                IssuerUrl::normalize($credentials->apiTokenIssuer),
+                $credentials->clientId,
+                $credentials->apiAudience,
+                $credentials instanceof ClientCredentials ? ($credentials->scopes ?? '') : '',
             ],
         );
 
         return 'openfga_token_' . hash('sha256', $material);
     }
 
-    private function loadValidToken(int $now): ?AccessToken
+    private function refreshMarkerKey(): string
     {
-        if ($this->memoryToken !== null && !$this->memoryToken->isExpiredAt($now)) {
-            return $this->memoryToken;
-        }
-
-        if ($this->cache === null) {
-            return null;
-        }
-
-        $cached = $this->cache->get($this->cacheKey());
-        if (!is_string($cached) || $cached === '') {
-            return null;
-        }
-
-        $decoded = $this->cacheCodec->decode($cached);
-        if ($decoded === null) {
-            return null;
-        }
-
-        $token = new AccessToken($decoded[0], $decoded[1]);
-        if ($token->isExpiredAt($now)) {
-            return null;
-        }
-
-        $this->memoryToken = $token;
-
-        return $token;
+        return $this->cacheKey() . '.refresh';
     }
 
-    private function storeCache(AccessToken $token, int $ttlEpoch): void
+    private function storeCache(AccessToken $token, int $now): void
     {
         if ($this->cache === null) {
             return;
         }
 
-        $now = $this->clock->now()->getTimestamp();
         // Expiry is at least one second ahead, so max(0, …) matches max(1, …).
         /** @infection-ignore-all */
-        $ttlSeconds = max(1, $ttlEpoch - $now);
-        $this->cache->set(
-            $this->cacheKey(),
-            $this->cacheCodec->encode($token->accessToken, $token->expiresAtEpoch),
-            $ttlSeconds,
-        );
+        $ttlSeconds = max(1, $token->expiresAtEpoch - $now);
+        $this->cache->set($this->cacheKey(), $this->cacheCodec->encode($token), $ttlSeconds);
     }
 
-    private function expiryEpoch(int $now, int $expiresIn): int
+    private function tokenFor(string $accessToken, int $now, int $expiresIn): AccessToken
     {
         $buffer = min(300, intdiv($expiresIn, 10));
         $jitterMax = min(60, intdiv($expiresIn, 20));
         $jitter = $jitterMax > 0 ? $this->randomizer->getInt(0, $jitterMax) : 0;
+        $margin = min(30, intdiv($expiresIn, 20));
 
-        // expiresIn is at least 1 and the buffer plus jitter stay below it.
-        return $now + ($expiresIn - $buffer - $jitter);
+        // The refresh buffer is never smaller than the expiry margin, so refreshAt <= expiresAt.
+        return new AccessToken(
+            $accessToken,
+            $now + ($expiresIn - $margin),
+            $now + ($expiresIn - $buffer - $jitter),
+        );
+    }
+
+    private function invalidResponse(
+        string $message,
+        int $status,
+        string $description,
+        string $endpointPath,
+        ?\Throwable $previous = null,
+    ): FgaTokenExchangeException {
+        return new FgaTokenExchangeException(
+            $message,
+            $status,
+            null,
+            $description,
+            null,
+            'POST',
+            $endpointPath,
+            null,
+            [],
+            IssuerUrl::normalize($this->credentials->apiTokenIssuer),
+            $this->credentials->apiAudience,
+            $this->credentials->clientId,
+            $previous,
+        );
     }
 
     private function tokenExchangeException(\Throwable $exception, string $endpointPath): FgaTokenExchangeException
     {
-        if ($exception instanceof FgaTokenExchangeException) {
-            return $exception;
-        }
-
         $status = $exception instanceof FgaApiException ? $exception->statusCode : 0;
         $body = $exception instanceof FgaApiException ? $exception->responseBody : '';
         [$error, $description] = $this->oauthError($body !== '' ? $body : $exception->getMessage());

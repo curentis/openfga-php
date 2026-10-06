@@ -11,7 +11,8 @@ use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckItemResult;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Exception\FgaValidationException;
-use Curentis\OpenFga\Http\JsonBody;
+use Curentis\OpenFga\Http\ParallelTransportInterface;
+use Curentis\OpenFga\Http\TransportCall;
 use Curentis\OpenFga\Http\TransportInterface;
 use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckItem;
@@ -20,7 +21,6 @@ use Curentis\OpenFga\Model\BatchCheckSingleResult;
 use Curentis\OpenFga\Model\CheckError;
 use Curentis\OpenFga\Model\CheckRequestTupleKey;
 use Curentis\OpenFga\Model\ConsistencyPreference;
-use Psr\Http\Message\ResponseInterface;
 
 final class BatchCheckRunner implements BatchCheckRunnerInterface
 {
@@ -57,12 +57,18 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
         $chunks = array_chunk($prepared, $batchSize);
         $api = $retry !== null ? $this->api->withCallOptions($retry) : $this->api;
         $transport = $this->transport;
-        $useParallel = $transport !== null
-            && $options->maxParallelRequests > 1
-            && $transport->supportsParallel();
 
-        if ($useParallel) {
-            $responses = $this->sendParallel($transport, $storeId, $chunks, $authorizationModelId, $consistency, $headers, $options->maxParallelRequests);
+        if ($transport instanceof ParallelTransportInterface && $options->maxParallelRequests > 1) {
+            $responses = $this->sendParallel(
+                $transport,
+                $storeId,
+                $chunks,
+                $authorizationModelId,
+                $consistency,
+                $headers,
+                $options->maxParallelRequests,
+                $retry,
+            );
         } else {
             $responses = [];
             foreach ($chunks as $chunk) {
@@ -120,31 +126,32 @@ final class BatchCheckRunner implements BatchCheckRunnerInterface
      * @return list<BatchCheckResponse>
      */
     private function sendParallel(
-        TransportInterface $transport,
+        ParallelTransportInterface $transport,
         string $storeId,
         array $chunks,
         ?string $authorizationModelId,
         ?ConsistencyPreference $consistency,
         array $headers,
         int $maxParallel,
+        ?RetryOptions $retry,
     ): array {
-        $requests = [];
+        $calls = [];
         foreach ($chunks as $chunk) {
-            $requests[] = $transport->buildRequest(
+            $calls[] = new TransportCall(
                 'POST',
                 '/stores/{store_id}/batch-check',
                 ['store_id' => $storeId],
                 [],
                 $this->bodyForChunk($chunk, $authorizationModelId, $consistency)->toArray(),
                 $this->chunkHeaders($headers),
+                $storeId,
             );
         }
 
+        /** @var positive-int $maxParallel */
         return array_map(
-            fn(ResponseInterface $response): BatchCheckResponse => BatchCheckResponse::fromArray(
-                JsonBody::decode((string) $response->getBody()),
-            ),
-            $transport->sendAll($requests, $maxParallel, $storeId),
+            static fn(array $decoded): BatchCheckResponse => BatchCheckResponse::fromArray($decoded),
+            $transport->sendJsonAll($calls, $maxParallel, $retry),
         );
     }
 

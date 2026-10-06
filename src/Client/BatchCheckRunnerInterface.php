@@ -13,6 +13,8 @@ use Curentis\OpenFga\Model\ConsistencyPreference;
 interface BatchCheckRunnerInterface
 {
     /**
+     * Result order is not part of the contract. Callers must match results by `correlationId` or `check`.
+     *
      * @param list<ClientBatchCheckItem> $checks
      * @param array<string, string>    $headers
      */

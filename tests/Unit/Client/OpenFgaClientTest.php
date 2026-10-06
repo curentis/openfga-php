@@ -15,6 +15,8 @@ use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
 use Curentis\OpenFga\Client\Request\ClientWriteRequest;
+use Curentis\OpenFga\Exception\FgaApiException;
+use Curentis\OpenFga\Exception\FgaApiInternalException;
 use Curentis\OpenFga\Exception\FgaRequiredParamException;
 use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Model\ConsistencyPreference;
@@ -30,6 +32,7 @@ use Curentis\OpenFga\Model\WriteAuthorizationModelBody;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class OpenFgaClientTest extends MockTransportTestCase
 {
@@ -347,6 +350,71 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertSame(3, $lines[0]['line']);
     }
 
+    /**
+     * @return iterable<string, array{string, string, ?bool, int}>
+     */
+    public static function escapeHatchRetryCases(): iterable
+    {
+        yield 'GET retries' => ['GET', '/stores/{store_id}', null, 2];
+        yield 'lowercase get retries' => ['get', '/stores/{store_id}', null, 2];
+        yield 'HEAD retries' => ['HEAD', '/stores/{store_id}', null, 2];
+        yield 'OPTIONS retries' => ['OPTIONS', '/stores/{store_id}', null, 2];
+        yield 'check retries' => ['POST', '/stores/{store_id}/check', null, 2];
+        yield 'batch-check retries' => ['post', '/stores/{store_id}/batch-check', null, 2];
+        yield 'expand retries' => ['POST', '/stores/{store_id}/expand', null, 2];
+        yield 'list-objects retries' => ['POST', '/stores/{store_id}/list-objects', null, 2];
+        yield 'streamed-list-objects retries' => ['POST', '/stores/{store_id}/streamed-list-objects', null, 2];
+        yield 'list-users retries' => ['POST', '/stores/{store_id}/list-users', null, 2];
+        yield 'read retries' => ['POST', '/stores/{store_id}/read', null, 2];
+        yield 'write does not retry' => ['POST', '/stores/{store_id}/write', null, 1];
+        yield 'suffixed path does not retry' => ['POST', '/stores/{store_id}/check-later', null, 1];
+        yield 'DELETE does not retry' => ['DELETE', '/stores/{store_id}', null, 1];
+        yield 'PUT to a read path does not retry' => ['PUT', '/stores/{store_id}/read', null, 1];
+        yield 'override enables retries' => ['POST', '/stores/{store_id}/write', true, 2];
+        yield 'override disables retries' => ['GET', '/stores/{store_id}', false, 1];
+    }
+
+    #[DataProvider('escapeHatchRetryCases')]
+    public function testExecuteApiRequestInfersIdempotency(string $method, string $path, ?bool $idempotent, int $expectedRequests): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $client = $this->openFgaClient($mock);
+
+        try {
+            $client->executeApiRequest(
+                $method,
+                $path,
+                ['store_id' => self::STORE_ID],
+                options: new RequestOptions(retry: new RetryOptions(maxRetry: 1, minWaitMs: 1)),
+                idempotent: $idempotent,
+            );
+        } catch (FgaApiInternalException) {
+        }
+
+        self::assertCount($expectedRequests, $mock->getRequests());
+    }
+
+    public function testExecuteStreamedApiRequestSendsEagerlyAndReportsTheStreamEndpoint(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"error":{"code":"internal_error","message":"boom"}}'));
+        $client = $this->openFgaClient($mock);
+
+        $stream = $client->executeStreamedApiRequest('POST', '/stores/{store_id}/streamed-list-objects', ['store_id' => self::STORE_ID], body: []);
+        self::assertCount(1, $mock->getRequests());
+
+        try {
+            iterator_to_array($stream);
+            self::fail('Expected a stream error');
+        } catch (FgaApiException $exception) {
+            self::assertSame('/stores/' . self::STORE_ID . '/streamed-list-objects', $exception->endpoint);
+            self::assertSame('POST', $exception->method);
+            self::assertSame(self::STORE_ID, $exception->storeId);
+        }
+    }
+
     public function testExecuteApiRequestValidatesPathParameters(): void
     {
         $mock = new MockClient();
@@ -470,13 +538,11 @@ final class OpenFgaClientTest extends MockTransportTestCase
         self::assertSame('/stores/' . self::STORE_ID, $this->lastRequest($mock)->getUri()->getPath());
     }
 
-    public function testRequireStoreIdThrowsWhenOptionsProvideEmptyString(): void
+    public function testAnEmptyStoreIdOverrideIsRejected(): void
     {
-        $mock = new MockClient();
-        $client = $this->openFgaClientWithConfiguration($mock, new ClientConfiguration(storeId: null));
-
-        $this->expectException(FgaRequiredParamException::class);
-        $client->getStore(new RequestOptions(storeId: ''));
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('storeId must be a valid ULID.');
+        new RequestOptions(storeId: '');
     }
 
     public function testRequireStoreIdThrowsWhenMissing(): void
@@ -489,16 +555,11 @@ final class OpenFgaClientTest extends MockTransportTestCase
         $client->getStore();
     }
 
-    public function testRequireAuthorizationModelIdThrowsWhenOptionsProvideEmptyString(): void
+    public function testAnEmptyAuthorizationModelIdOverrideIsRejected(): void
     {
-        $mock = new MockClient();
-        $client = $this->openFgaClientWithConfiguration($mock, new ClientConfiguration(
-            storeId: self::STORE_ID,
-            authorizationModelId: null,
-        ));
-
-        $this->expectException(FgaRequiredParamException::class);
-        $client->readAuthorizationModel(new RequestOptions(authorizationModelId: ''));
+        $this->expectException(FgaValidationException::class);
+        $this->expectExceptionMessage('authorizationModelId must be a valid ULID.');
+        new RequestOptions(authorizationModelId: '');
     }
 
     public function testRequireAuthorizationModelIdThrowsWhenMissing(): void

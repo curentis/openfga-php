@@ -13,13 +13,16 @@ use Curentis\OpenFga\Exception\FgaApiRateLimitException;
 use Curentis\OpenFga\Exception\FgaApiValidationException;
 use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Http\RequestContext;
 use Curentis\OpenFga\Http\RetryPolicy;
 use Curentis\OpenFga\Observability\RequestFinished;
+use Curentis\OpenFga\Observability\RequestOutcome;
 use Curentis\OpenFga\Observability\RetryScheduled;
 use Curentis\OpenFga\Observability\SdkTelemetry;
 use Curentis\OpenFga\Tests\Support\CallCounter;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\ManualClock;
 use Curentis\OpenFga\Tests\Support\RecordingDispatcher;
 use Curentis\OpenFga\Tests\Support\RecordingLogger;
 use Curentis\OpenFga\Tests\Support\TestClientException;
@@ -35,6 +38,8 @@ final class RetryPolicyTest extends TestCase
 {
     private const int FIXED_EPOCH = 1_700_000_000;
 
+    private ManualClock $clock;
+
     private FakeSleeper $sleeper;
 
     private Randomizer $randomizer;
@@ -42,7 +47,8 @@ final class RetryPolicyTest extends TestCase
     #[\Override]
     protected function setUp(): void
     {
-        $this->sleeper = new FakeSleeper();
+        $this->clock = new ManualClock(self::FIXED_EPOCH * 1000);
+        $this->sleeper = new FakeSleeper($this->clock);
         $this->randomizer = new Randomizer(new Mt19937(1));
     }
 
@@ -57,7 +63,7 @@ final class RetryPolicyTest extends TestCase
             $maxRetry,
             $minWaitMs,
             $this->sleeper,
-            new FrozenClock(new DateTimeImmutable('@' . self::FIXED_EPOCH)),
+            $this->clock,
             $this->randomizer,
             maxElapsedMs: $maxElapsedMs,
             maxDelayMs: $maxDelayMs,
@@ -78,9 +84,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'POST',
-            '/stores/abc/check',
-            'abc',
+            new RequestContext('POST', '/stores/abc/check', storeId: 'abc'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -102,8 +106,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/stores',
+            new RequestContext('GET', '/stores'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -125,8 +128,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/stores',
+            new RequestContext('GET', '/stores'),
         );
 
         self::assertSame([123], $this->sleeper->sleptMilliseconds);
@@ -161,8 +163,7 @@ final class RetryPolicyTest extends TestCase
 
                     return new Response($status, [], '{"code":"err","message":"nope"}');
                 },
-                'POST',
-                '/stores/x/check',
+                new RequestContext('POST', '/stores/x/check'),
             );
             self::fail('Expected exception');
         } catch (FgaApiException $exception) {
@@ -199,8 +200,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/healthz',
+            new RequestContext('GET', '/healthz'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -220,8 +220,7 @@ final class RetryPolicyTest extends TestCase
 
                     return new Response(503, [], '{}');
                 },
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected exception');
         } catch (FgaApiInternalException) {
@@ -243,8 +242,7 @@ final class RetryPolicyTest extends TestCase
         $policy = $this->policy(maxRetry: 15);
         $response = $policy->send(
             static fn(): Response => new Response(200, [], '{}'),
-            'GET',
-            '/healthz',
+            new RequestContext('GET', '/healthz'),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -257,8 +255,7 @@ final class RetryPolicyTest extends TestCase
         $this->expectException(FgaApiException::class);
         $policy->send(
             static fn(): Response => new Response(300, [], '{}'),
-            'GET',
-            '/healthz',
+            new RequestContext('GET', '/healthz'),
         );
     }
 
@@ -285,8 +282,7 @@ final class RetryPolicyTest extends TestCase
 
                     return new Response(503, [], '{}');
                 },
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected exception');
         } catch (FgaApiInternalException) {
@@ -306,8 +302,7 @@ final class RetryPolicyTest extends TestCase
                     $counter->increment();
                     throw $root;
                 },
-                'POST',
-                '/stores/abc/check',
+                new RequestContext('POST', '/stores/abc/check'),
             );
             self::fail('Expected exception');
         } catch (FgaNetworkException $exception) {
@@ -323,7 +318,7 @@ final class RetryPolicyTest extends TestCase
         $response = new Response(429, ['Retry-After' => '4'], '{"code":"rate_limit","message":"slow"}');
 
         try {
-            $policy->send(static fn(): Response => $response, 'GET', '/stores');
+            $policy->send(static fn(): Response => $response, new RequestContext('GET', '/stores'));
             self::fail('Expected exception');
         } catch (FgaApiRateLimitException $exception) {
             self::assertSame(4000, $exception->retryAfterMs);
@@ -342,11 +337,7 @@ final class RetryPolicyTest extends TestCase
 
                     return new Response(500, [], '{"code":"internal","message":"boom"}');
                 },
-                'POST',
-                '/stores/s/write',
-                's',
-                null,
-                false,
+                new RequestContext('POST', '/stores/s/write', storeId: 's', idempotent: false),
             );
             self::fail('Expected exception');
         } catch (FgaApiInternalException) {
@@ -360,11 +351,7 @@ final class RetryPolicyTest extends TestCase
                     $networkCalls->increment();
                     throw new TestNetworkException('reset');
                 },
-                'POST',
-                '/stores/s/write',
-                null,
-                null,
-                false,
+                new RequestContext('POST', '/stores/s/write', idempotent: false),
             );
             self::fail('Expected exception');
         } catch (FgaNetworkException) {
@@ -386,11 +373,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'POST',
-            '/stores/s/write',
-            null,
-            null,
-            false,
+            new RequestContext('POST', '/stores/s/write', idempotent: false),
         );
 
         self::assertSame(200, $response->getStatusCode());
@@ -409,8 +392,7 @@ final class RetryPolicyTest extends TestCase
 
                     return new Response(429, ['Retry-After' => '2'], '{"code":"rate_limit","message":"slow"}');
                 },
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected exception');
         } catch (FgaApiRateLimitException) {
@@ -430,8 +412,7 @@ final class RetryPolicyTest extends TestCase
                     $counter->increment();
                     throw new TestNetworkException('reset');
                 },
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected exception');
         } catch (FgaNetworkException) {
@@ -453,8 +434,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/stores',
+            new RequestContext('GET', '/stores'),
         );
 
         self::assertSame([50], $this->sleeper->sleptMilliseconds);
@@ -473,9 +453,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/healthz',
-            null,
+            new RequestContext('GET', '/healthz'),
             new RetryOptions(maxRetry: 1, minWaitMs: 100),
         );
 
@@ -493,8 +471,7 @@ final class RetryPolicyTest extends TestCase
                 static function () use ($root): Response {
                     throw $root;
                 },
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected exception');
         } catch (FgaNetworkException $exception) {
@@ -519,8 +496,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/healthz',
+            new RequestContext('GET', '/healthz'),
         );
 
         $finished = null;
@@ -548,8 +524,7 @@ final class RetryPolicyTest extends TestCase
         try {
             $policy->send(
                 static fn(): Response => new Response(500, [], '{}'),
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected an API exception');
         } catch (FgaApiInternalException) {
@@ -566,8 +541,7 @@ final class RetryPolicyTest extends TestCase
         try {
             $policy->send(
                 static fn(): Response => new Response(429, ['Retry-After' => '2'], '{}'),
-                'GET',
-                '/stores',
+                new RequestContext('GET', '/stores'),
             );
             self::fail('Expected a rate-limit exception');
         } catch (FgaApiRateLimitException) {
@@ -591,8 +565,7 @@ final class RetryPolicyTest extends TestCase
 
                 return new Response(200, [], '{}');
             },
-            'GET',
-            '/healthz',
+            new RequestContext('GET', '/healthz'),
         );
 
         self::assertSame([123], $this->sleeper->sleptMilliseconds);
@@ -604,8 +577,7 @@ final class RetryPolicyTest extends TestCase
         try {
             $policy->send(
                 static fn(): Response => new Response(503, [], '{}'),
-                'GET',
-                '/healthz',
+                new RequestContext('GET', '/healthz'),
             );
             self::fail('Expected the budget to stop the retry');
         } catch (FgaApiInternalException) {
@@ -620,14 +592,148 @@ final class RetryPolicyTest extends TestCase
         try {
             $policy->send(
                 static fn(): Response => new Response(503, [], '{}'),
-                'GET',
-                '/healthz',
+                new RequestContext('GET', '/healthz'),
             );
             self::fail('Expected the budget to stop the retry');
         } catch (FgaApiInternalException) {
         }
 
         self::assertSame([123, 298], $this->sleeper->sleptMilliseconds);
+    }
+
+    public function testRequestTimeCountsTowardTheDeadline(): void
+    {
+        $policy = $this->policy(maxRetry: 3, maxElapsedMs: 10_000);
+        $clock = $this->clock;
+        $counter = new CallCounter();
+        try {
+            $policy->send(
+                static function () use ($clock, $counter): Response {
+                    $counter->increment();
+                    $clock->advanceMs(9_900);
+
+                    return new Response(503, [], '{}');
+                },
+                new RequestContext('GET', '/healthz'),
+            );
+            self::fail('Expected the deadline to stop the retry');
+        } catch (FgaApiInternalException) {
+        }
+
+        self::assertSame(1, $counter->count);
+        self::assertSame([], $this->sleeper->sleptMilliseconds);
+    }
+
+    public function testNestedCallsDoNotResetTheOuterBudget(): void
+    {
+        $policy = $this->policy(maxRetry: 3, maxElapsedMs: 900);
+        $counter = new CallCounter();
+        try {
+            $policy->send(
+                static function () use ($policy, $counter): Response {
+                    $counter->increment();
+                    $policy->send(static fn(): Response => new Response(200, [], '{}'), new RequestContext('POST', '/oauth/token'));
+
+                    return new Response(503, [], '{}');
+                },
+                new RequestContext('GET', '/healthz'),
+            );
+            self::fail('Expected the budget to stop the retry');
+        } catch (FgaApiInternalException) {
+        }
+
+        self::assertSame(3, $counter->count);
+        self::assertSame([123, 298], $this->sleeper->sleptMilliseconds);
+    }
+
+    public function testReportsDurationRouteAndOutcome(): void
+    {
+        $dispatcher = new RecordingDispatcher();
+        $policy = $this->policy(maxRetry: 1, telemetry: new SdkTelemetry(dispatcher: $dispatcher));
+        $clock = $this->clock;
+        $policy->send(
+            static function () use ($clock): Response {
+                $clock->advanceMs(40);
+
+                return new Response(200, [], '{}');
+            },
+            new RequestContext('POST', '/stores/s1/check', '/stores/{store_id}/check', 's1'),
+        );
+
+        $finished = $dispatcher->events[0];
+        self::assertInstanceOf(RequestFinished::class, $finished);
+        self::assertSame('/stores/{store_id}/check', $finished->route);
+        self::assertSame('/stores/s1/check', $finished->endpoint);
+        self::assertSame('s1', $finished->storeId);
+        self::assertSame(40, $finished->durationMs);
+        self::assertSame(RequestOutcome::Success, $finished->outcome);
+    }
+
+    public function testNetworkFailuresEmitAFinishedEvent(): void
+    {
+        $dispatcher = new RecordingDispatcher();
+        $policy = $this->policy(maxRetry: 1, telemetry: new SdkTelemetry(dispatcher: $dispatcher));
+        try {
+            $policy->send(
+                static function (): Response {
+                    throw new TestNetworkException('reset');
+                },
+                new RequestContext('GET', '/stores'),
+            );
+            self::fail('Expected a network exception');
+        } catch (FgaNetworkException) {
+        }
+        try {
+            $policy->send(
+                static function (): Response {
+                    throw new TestClientException('bad');
+                },
+                new RequestContext('GET', '/stores'),
+            );
+            self::fail('Expected a network exception');
+        } catch (FgaNetworkException) {
+        }
+
+        $finished = array_values(array_filter(
+            $dispatcher->events,
+            static fn(object $event): bool => $event instanceof RequestFinished,
+        ));
+        self::assertCount(2, $finished);
+        self::assertNull($finished[0]->statusCode);
+        self::assertSame(2, $finished[0]->attempts);
+        self::assertSame(123, $finished[0]->durationMs);
+        self::assertSame(RequestOutcome::NetworkError, $finished[0]->outcome);
+        self::assertSame(1, $finished[1]->attempts);
+        self::assertSame(RequestOutcome::NetworkError, $finished[1]->outcome);
+    }
+
+    public function testHttpErrorsReportTheHttpErrorOutcome(): void
+    {
+        $dispatcher = new RecordingDispatcher();
+        $policy = $this->policy(maxRetry: 0, telemetry: new SdkTelemetry(dispatcher: $dispatcher));
+        try {
+            $policy->send(static fn(): Response => new Response(404, [], '{}'), new RequestContext('GET', '/stores'));
+            self::fail('Expected a not-found exception');
+        } catch (FgaApiNotFoundException) {
+        }
+
+        self::assertInstanceOf(RequestFinished::class, $dispatcher->events[0]);
+        self::assertSame(404, $dispatcher->events[0]->statusCode);
+        self::assertSame(RequestOutcome::HttpError, $dispatcher->events[0]->outcome);
+    }
+
+    public function testFromOptionsCopiesEveryLimit(): void
+    {
+        $policy = RetryPolicy::fromOptions(
+            new RetryOptions(maxRetry: 2, minWaitMs: 7, maxElapsedMs: 900, maxDelayMs: 40),
+            $this->sleeper,
+            $this->clock,
+            $this->randomizer,
+        );
+
+        foreach (['maxRetry' => 2, 'minWaitMs' => 7, 'maxElapsedMs' => 900, 'maxDelayMs' => 40] as $name => $expected) {
+            self::assertSame($expected, (new \ReflectionProperty(RetryPolicy::class, $name))->getValue($policy));
+        }
     }
 
     public function testDefaultsMatchTheDocumentedBudget(): void

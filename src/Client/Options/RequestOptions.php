@@ -17,10 +17,10 @@ final readonly class RequestOptions
         public array $headers = [],
         public ?RetryOptions $retry = null,
     ) {
-        if ($storeId !== null && $storeId !== '') {
+        if ($storeId !== null) {
             Ulid::assert($storeId, 'storeId');
         }
-        if ($authorizationModelId !== null && $authorizationModelId !== '') {
+        if ($authorizationModelId !== null) {
             Ulid::assert($authorizationModelId, 'authorizationModelId');
         }
     }

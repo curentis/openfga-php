@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Observability;
 
+use Curentis\OpenFga\Http\RequestContext;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Telemetry never fails a request: exceptions from the logger or from event listeners are discarded,
+ * and a failing listener is reported through the logger as `openfga.telemetry_failed`.
+ */
 final class SdkTelemetry
 {
     public function __construct(
@@ -14,46 +19,83 @@ final class SdkTelemetry
         private readonly ?EventDispatcherInterface $dispatcher = null,
     ) {}
 
-    public function requestFinished(string $method, string $endpoint, int $statusCode, int $attempts): void
-    {
-        $event = new RequestFinished($method, $endpoint, $statusCode, $attempts);
-        if ($this->logger !== null) {
-            $this->logger->info('openfga.request', [
-                'method' => $method,
-                'endpoint' => $endpoint,
+    public function requestFinished(
+        RequestContext $context,
+        ?int $statusCode,
+        int $attempts,
+        int $durationMs,
+        RequestOutcome $outcome,
+    ): void {
+        $this->emit(
+            'openfga.request',
+            [
+                'method' => $context->method,
+                'route' => $context->route,
+                'endpoint' => $context->endpoint,
+                'store_id' => $context->storeId,
                 'status' => $statusCode,
                 'attempts' => $attempts,
-            ]);
-        }
-        if ($this->dispatcher !== null) {
-            $this->dispatcher->dispatch($event);
-        }
+                'duration_ms' => $durationMs,
+                'outcome' => $outcome->value,
+            ],
+            new RequestFinished(
+                $context->method,
+                $context->endpoint,
+                $context->route,
+                $context->storeId,
+                $statusCode,
+                $attempts,
+                $durationMs,
+                $outcome,
+            ),
+        );
     }
 
-    public function retryScheduled(string $method, string $endpoint, int $attempt, int $delayMs): void
+    public function retryScheduled(RequestContext $context, int $attempt, int $delayMs): void
     {
-        $event = new RetryScheduled($method, $endpoint, $attempt, $delayMs);
-        if ($this->logger !== null) {
-            $this->logger->info('openfga.retry', [
-                'method' => $method,
-                'endpoint' => $endpoint,
+        $this->emit(
+            'openfga.retry',
+            [
+                'method' => $context->method,
+                'route' => $context->route,
+                'endpoint' => $context->endpoint,
+                'store_id' => $context->storeId,
                 'attempt' => $attempt,
                 'delay_ms' => $delayMs,
-            ]);
-        }
-        if ($this->dispatcher !== null) {
-            $this->dispatcher->dispatch($event);
-        }
+            ],
+            new RetryScheduled($context->method, $context->endpoint, $context->route, $context->storeId, $attempt, $delayMs),
+        );
     }
 
     public function tokenRefreshed(string $clientId): void
     {
-        $event = new TokenRefreshed($clientId);
-        if ($this->logger !== null) {
-            $this->logger->info('openfga.token_refresh', ['client_id' => $clientId]);
+        $this->emit('openfga.token_refresh', ['client_id' => $clientId], new TokenRefreshed($clientId));
+    }
+
+    /**
+     * @param array<string, scalar|null> $context
+     */
+    private function emit(string $message, array $context, object $event): void
+    {
+        // Logger failures are swallowed, so a missing logger and a failing one behave the same.
+        try {
+            /** @infection-ignore-all */
+            $this->logger?->info($message, $context);
+        } catch (\Throwable) {
         }
-        if ($this->dispatcher !== null) {
-            $this->dispatcher->dispatch($event);
+
+        try {
+            $this->dispatcher?->dispatch($event);
+        } catch (\Throwable $exception) {
+            try {
+                /** @infection-ignore-all */
+                $this->logger?->warning('openfga.telemetry_failed', [
+                    'event' => $event::class,
+                    'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ]);
+            } catch (\Throwable) {
+            }
         }
     }
 }
