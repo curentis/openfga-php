@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Metadata implements \JsonSerializable
 {
@@ -26,7 +26,7 @@ final readonly class Metadata implements \JsonSerializable
                 $module = null;
             } else {
                 if (!is_string($module)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
                 }
             }
         }
@@ -37,7 +37,7 @@ final readonly class Metadata implements \JsonSerializable
                 $relations = null;
             } else {
                 if (!is_array($relations)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'relations'));
                 }
             }
         }
@@ -48,7 +48,7 @@ final readonly class Metadata implements \JsonSerializable
                 $sourceInfo = null;
             } else {
                 if (!is_array($sourceInfo)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
                 }
                 $sourceInfo = SourceInfo::fromArray($sourceInfo, ($path === '' ? '' : $path . '.') . 'source_info');
             }

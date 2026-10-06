@@ -28,11 +28,20 @@ final class NdjsonStreamTest extends TestCase
         self::assertSame([], iterator_to_array(NdjsonStream::decode(new EmptyReadStream())));
     }
 
+    public function testMalformedJsonLineThrows(): void
+    {
+        $stream = new ChunkedStream("{not-json}\n", 64);
+
+        $this->expectException(\Curentis\OpenFga\Exception\FgaResponseDecodeException::class);
+        $this->expectExceptionMessage('non-JSON');
+        iterator_to_array(NdjsonStream::decode($stream));
+    }
+
     public function testNonObjectJsonLineThrows(): void
     {
         $stream = new ChunkedStream('42' . "\n", 64);
 
-        $this->expectException(\JsonException::class);
+        $this->expectException(\Curentis\OpenFga\Exception\FgaResponseDecodeException::class);
         iterator_to_array(NdjsonStream::decode($stream));
     }
 
@@ -101,7 +110,33 @@ final class NdjsonStreamTest extends TestCase
             self::fail('Expected a stream error');
         } catch (FgaApiException $exception) {
             self::assertSame(500, $exception->statusCode);
-            self::assertSame('nope', $exception->getMessage());
+            self::assertStringContainsString('nope', $exception->getMessage());
+            self::assertInstanceOf(\Curentis\OpenFga\Exception\FgaApiInternalException::class, $exception);
+        }
+    }
+
+    public function testStreamErrorHonoursHttpCode(): void
+    {
+        $stream = new ChunkedStream('{"error":{"message":"bad","code":"validation_error","http_code":400}}' . "\n", 128);
+
+        try {
+            iterator_to_array(NdjsonStream::decode($stream, 128, 'POST', '/stores/s/streamed-list-objects', 's'));
+            self::fail('Expected a stream error');
+        } catch (\Curentis\OpenFga\Exception\FgaApiValidationException $exception) {
+            self::assertSame('validation_error', $exception->apiErrorCode);
+        }
+    }
+
+    public function testStreamErrorIgnoresANonStringCode(): void
+    {
+        $stream = new ChunkedStream('{"error":{"message":"bad","code":1}}' . "\n", 64);
+
+        try {
+            iterator_to_array(NdjsonStream::decode($stream));
+            self::fail('Expected a stream error');
+        } catch (FgaApiException $exception) {
+            self::assertNull($exception->apiErrorCode);
+            self::assertStringContainsString('bad', $exception->getMessage());
         }
     }
 

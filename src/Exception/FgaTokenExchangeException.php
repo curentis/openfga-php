@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Exception;
 
-/** @internal */
 final class FgaTokenExchangeException extends FgaApiAuthenticationException
 {
     /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class WriteAuthorizationModelBody implements \JsonSerializable
 {
@@ -21,22 +21,22 @@ final readonly class WriteAuthorizationModelBody implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('schema_version', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'schema_version'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'schema_version'));
         }
         if (!is_string($data['schema_version'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'schema_version'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'schema_version'));
         }
         $schemaVersion = $data['schema_version'];
         if (!array_key_exists('type_definitions', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type_definitions'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'type_definitions'));
         }
         if (!is_array($data['type_definitions'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'type_definitions'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'type_definitions'));
         }
         $typeDefinitionsList = [];
         foreach ($data['type_definitions'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $typeDefinitionsList[] = TypeDefinition::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
@@ -48,7 +48,7 @@ final readonly class WriteAuthorizationModelBody implements \JsonSerializable
                 $conditions = null;
             } else {
                 if (!is_array($conditions)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'conditions'));
                 }
             }
         }

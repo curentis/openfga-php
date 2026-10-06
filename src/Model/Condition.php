@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Condition implements \JsonSerializable
 {
@@ -21,17 +21,17 @@ final readonly class Condition implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('expression', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'expression'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'expression'));
         }
         if (!is_string($data['expression'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'expression'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'expression'));
         }
         $expression = $data['expression'];
         if (!array_key_exists('name', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
         }
         if (!is_string($data['name'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
         }
         $name = $data['name'];
         $metadata = null;
@@ -41,7 +41,7 @@ final readonly class Condition implements \JsonSerializable
                 $metadata = null;
             } else {
                 if (!is_array($metadata)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'metadata'));
                 }
                 $metadata = ConditionMetadata::fromArray($metadata, ($path === '' ? '' : $path . '.') . 'metadata');
             }
@@ -53,7 +53,7 @@ final readonly class Condition implements \JsonSerializable
                 $parameters = null;
             } else {
                 if (!is_array($parameters)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'parameters'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'parameters'));
                 }
             }
         }

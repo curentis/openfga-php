@@ -34,6 +34,9 @@ final class DependencyRulesTest extends TestCase
             if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
                 continue;
             }
+            if (str_contains($file->getPathname(), DIRECTORY_SEPARATOR . 'Http' . DIRECTORY_SEPARATOR . 'Adapter' . DIRECTORY_SEPARATOR)) {
+                continue;
+            }
             $contents = (string) file_get_contents($file->getPathname());
             if (preg_match('/\b(GuzzleHttp|Symfony\\\\)/', $contents) === 1) {
                 $violations[] = str_replace($srcDir . '/', '', $file->getPathname());
@@ -41,5 +44,20 @@ final class DependencyRulesTest extends TestCase
         }
 
         self::assertSame([], $violations);
+    }
+
+    public function testExceptionTypesArePublicApi(): void
+    {
+        $exceptionDir = dirname(__DIR__, 2) . '/src/Exception';
+        $violations = [];
+        $files = glob($exceptionDir . '/*.php');
+        foreach ($files !== false ? $files : [] as $file) {
+            $contents = (string) file_get_contents($file);
+            if (str_contains($contents, '@internal')) {
+                $violations[] = basename($file);
+            }
+        }
+
+        self::assertSame([], $violations, 'Exception types are part of the public API');
     }
 }

@@ -15,6 +15,7 @@ use Curentis\OpenFga\Http\Transport;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
@@ -51,7 +52,7 @@ abstract class MockTransportTestCase extends TestCase
             $api,
             $transport,
             $components->createWriteRunner($api),
-            $components->createBatchCheckRunner($api),
+            $components->createBatchCheckRunner($api, $transport),
             $components->createConsistencyBodyFactory(),
         );
     }
@@ -64,7 +65,57 @@ abstract class MockTransportTestCase extends TestCase
         return $request;
     }
 
+    protected function openFgaClientFromHttp(
+        ClientInterface $http,
+        string $storeId = '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ?string $authorizationModelId = '01HZZZZZZZZZZZZZZZZZZZZZZZ',
+    ): OpenFgaClient {
+        $transport = $this->transportFor($http);
+        $api = new OpenFgaApi($transport);
+        $components = new DefaultClientComponentFactory();
+
+        return new OpenFgaClient(
+            new ClientConfiguration(
+                storeId: $storeId,
+                authorizationModelId: $authorizationModelId,
+            ),
+            $api,
+            $transport,
+            $components->createWriteRunner($api),
+            $components->createBatchCheckRunner($api, $transport),
+            $components->createConsistencyBodyFactory(),
+        );
+    }
+
     protected function transport(MockClient $mock): Transport
+    {
+        return $this->transportFor($mock);
+    }
+
+    protected function retryingApi(MockClient $mock): OpenFgaApi
+    {
+        $factories = new Psr17Factory();
+        $retry = new RetryPolicy(
+            0,
+            1,
+            new FakeSleeper(),
+            new FrozenClock(new \DateTimeImmutable('@1700000000')),
+            new Randomizer(new Mt19937(1)),
+        );
+
+        return new OpenFgaApi(new Transport(
+            'http://localhost:8080',
+            [],
+            $mock,
+            $factories,
+            $factories,
+            $factories,
+            $retry,
+            new AuthorizationHeaderProvider(new NoCredentials()),
+        ));
+    }
+
+    protected function transportFor(ClientInterface $http): Transport
     {
         $factories = new Psr17Factory();
         $retry = new RetryPolicy(
@@ -78,7 +129,7 @@ abstract class MockTransportTestCase extends TestCase
         return new Transport(
             'http://localhost:8080',
             [],
-            $mock,
+            $http,
             $factories,
             $factories,
             $factories,

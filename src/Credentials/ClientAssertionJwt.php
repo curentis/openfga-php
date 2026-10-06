@@ -37,12 +37,7 @@ final class ClientAssertionJwt
         ];
 
         $signingInput = implode('.', $segments);
-        $key = openssl_pkey_get_private($credentials->privateKeyPem);
-        if ($key === false) {
-            throw new \RuntimeException('Invalid private key for client assertion.');
-        }
-
-        $signatureBytes = self::signSha256($signingInput, $key);
+        $signatureBytes = self::signSha256($signingInput, $credentials->privateKey());
         $segments[] = self::base64UrlEncode($signatureBytes);
 
         return implode('.', $segments);

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class WriteAuthorizationModelResponse implements \JsonSerializable
 {
@@ -17,10 +17,10 @@ final readonly class WriteAuthorizationModelResponse implements \JsonSerializabl
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('authorization_model_id', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
         }
         if (!is_string($data['authorization_model_id'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
         }
         $authorizationModelId = $data['authorization_model_id'];
         return new self(authorizationModelId: $authorizationModelId);

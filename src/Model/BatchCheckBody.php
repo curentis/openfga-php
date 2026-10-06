@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class BatchCheckBody implements \JsonSerializable
 {
@@ -13,22 +13,22 @@ final readonly class BatchCheckBody implements \JsonSerializable
         /** @var list<BatchCheckItem> */
         public array $checks,
         public ?string $authorizationModelId = null,
-        public ?ConsistencyPreference $consistency = null
+        public ConsistencyPreference|string|null $consistency = null
     ) {}
 
     /** @param array<array-key, mixed> $data */
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('checks', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'checks'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'checks'));
         }
         if (!is_array($data['checks'])) {
-            throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'checks'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'checks'));
         }
         $checksList = [];
         foreach ($data['checks'] as $idx => $item) {
             if (!is_array($item)) {
-                throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
             }
             $checksList[] = BatchCheckItem::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
         }
@@ -40,7 +40,7 @@ final readonly class BatchCheckBody implements \JsonSerializable
                 $authorizationModelId = null;
             } else {
                 if (!is_string($authorizationModelId)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
                 }
             }
         }
@@ -51,13 +51,10 @@ final readonly class BatchCheckBody implements \JsonSerializable
                 $consistency = null;
             } else {
                 if (!is_string($consistency)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
-                try {
-                    $consistency = ConsistencyPreference::from($consistency);
-                } catch (\ValueError) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
-                }
+                $parsedconsistency = ConsistencyPreference::tryFrom($consistency);
+                $consistency = $parsedconsistency instanceof \BackedEnum ? $parsedconsistency : $consistency;
             }
         }
         return new self(checks: $checks, authorizationModelId: $authorizationModelId, consistency: $consistency);
@@ -66,7 +63,7 @@ final readonly class BatchCheckBody implements \JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency?->value], static fn(mixed $v): bool => $v !== null);
+        return array_filter(['checks' => array_map(static fn(BatchCheckItem $v): array => $v->toArray(), $this->checks), 'authorization_model_id' => $this->authorizationModelId, 'consistency' => $this->consistency instanceof \BackedEnum ? $this->consistency->value : $this->consistency], static fn(mixed $v): bool => $v !== null);
     }
 
     /** @return array<string, mixed> */

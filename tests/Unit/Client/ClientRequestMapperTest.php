@@ -6,6 +6,8 @@ namespace Curentis\OpenFga\Tests\Unit\Client;
 
 use Curentis\OpenFga\Client\ClientRequestMapper;
 use Curentis\OpenFga\Client\Options\ConflictOptions;
+use Curentis\OpenFga\Client\Options\OnDuplicateWrites;
+use Curentis\OpenFga\Client\Options\OnMissingDeletes;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
 use Curentis\OpenFga\Client\Request\ClientTupleKeyWithoutCondition;
@@ -58,7 +60,7 @@ final class ClientRequestMapperTest extends TestCase
                 deletes: [new ClientTupleKeyWithoutCondition('user:u', 'viewer', 'doc:2')],
             ),
             'model-1',
-            new ConflictOptions(onDuplicateWrites: 'ignore', onMissingDeletes: 'ignore'),
+            new ConflictOptions(onDuplicateWrites: OnDuplicateWrites::Ignore, onMissingDeletes: OnMissingDeletes::Ignore),
         );
 
         self::assertSame('ignore', $body->writes?->onDuplicate);

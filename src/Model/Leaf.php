@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Leaf implements \JsonSerializable
 {
@@ -25,7 +25,7 @@ final readonly class Leaf implements \JsonSerializable
                 $computed = null;
             } else {
                 if (!is_array($computed)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computed'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computed'));
                 }
                 $computed = Computed::fromArray($computed, ($path === '' ? '' : $path . '.') . 'computed');
             }
@@ -37,7 +37,7 @@ final readonly class Leaf implements \JsonSerializable
                 $tupleToUserset = null;
             } else {
                 if (!is_array($tupleToUserset)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
                 }
                 $tupleToUserset = UsersetTreeTupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
             }
@@ -49,7 +49,7 @@ final readonly class Leaf implements \JsonSerializable
                 $users = null;
             } else {
                 if (!is_array($users)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'users'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'users'));
                 }
                 $users = Users::fromArray($users, ($path === '' ? '' : $path . '.') . 'users');
             }

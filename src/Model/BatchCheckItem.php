@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class BatchCheckItem implements \JsonSerializable
 {
@@ -21,17 +21,17 @@ final readonly class BatchCheckItem implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('correlation_id', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'correlation_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'correlation_id'));
         }
         if (!is_string($data['correlation_id'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'correlation_id'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'correlation_id'));
         }
         $correlationId = $data['correlation_id'];
         if (!array_key_exists('tuple_key', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         if (!is_array($data['tuple_key'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         $tupleKey = CheckRequestTupleKey::fromArray($data['tuple_key'], ($path === '' ? '' : $path . '.') . 'tuple_key');
         $context = null;
@@ -41,7 +41,7 @@ final readonly class BatchCheckItem implements \JsonSerializable
                 $context = null;
             } else {
                 if (!is_array($context)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
                 }
             }
         }
@@ -52,7 +52,7 @@ final readonly class BatchCheckItem implements \JsonSerializable
                 $contextualTuples = null;
             } else {
                 if (!is_array($contextualTuples)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
                 $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
             }

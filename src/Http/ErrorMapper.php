@@ -12,11 +12,10 @@ use Curentis\OpenFga\Exception\FgaApiRateLimitException;
 use Curentis\OpenFga\Exception\FgaApiValidationException;
 use Psr\Http\Message\ResponseInterface;
 
-/**
- * @internal
- */
 final class ErrorMapper
 {
+    private const int MAX_MESSAGE_BODY = 512;
+
     public function map(
         string $method,
         string $endpoint,
@@ -26,10 +25,61 @@ final class ErrorMapper
     ): FgaApiException {
         $statusCode = $response->getStatusCode();
         $headers = $this->normalizeHeaders($response);
-        $requestId = $this->requestIdFromHeaders($headers);
-        [$apiErrorCode, $apiErrorMessage] = $this->parseErrorBody($response);
-        $message = $this->formatMessage($method, $endpoint, $statusCode, $apiErrorCode, $apiErrorMessage);
+        $rawBody = (string) $response->getBody();
+        [$apiErrorCode, $apiErrorMessage] = $this->parseErrorBody($rawBody);
 
+        return $this->exceptionForStatus(
+            $method,
+            $endpoint,
+            $storeId,
+            $statusCode,
+            $apiErrorCode,
+            $apiErrorMessage,
+            $this->requestIdFromHeaders($headers),
+            $headers,
+            $rawBody,
+            $retryAfterMs,
+        );
+    }
+
+    public function mapStreamError(
+        string $method,
+        string $endpoint,
+        ?string $storeId,
+        int $statusCode,
+        ?string $code,
+        string $message,
+    ): FgaApiException {
+        return $this->exceptionForStatus(
+            $method,
+            $endpoint,
+            $storeId,
+            $statusCode,
+            $code,
+            $message,
+            null,
+            [],
+            $message,
+            null,
+        );
+    }
+
+    /**
+     * @param array<string, list<string>> $headers
+     */
+    private function exceptionForStatus(
+        string $method,
+        string $endpoint,
+        ?string $storeId,
+        int $statusCode,
+        ?string $apiErrorCode,
+        string $apiErrorMessage,
+        ?string $requestId,
+        array $headers,
+        string $responseBody,
+        ?int $retryAfterMs,
+    ): FgaApiException {
+        $message = $this->formatMessage($method, $endpoint, $statusCode, $apiErrorCode, $apiErrorMessage);
         $args = [
             $message,
             $statusCode,
@@ -40,9 +90,11 @@ final class ErrorMapper
             $endpoint,
             $storeId,
             $headers,
+            null,
+            $responseBody,
         ];
 
-        if ($statusCode === 422) {
+        if ($statusCode === 422 || $statusCode === 400) {
             return new FgaApiValidationException(...$args);
         }
         if ($statusCode === 401 || $statusCode === 403) {
@@ -63,13 +115,13 @@ final class ErrorMapper
                 $storeId,
                 $headers,
                 $retryAfterMs,
+                null,
+                $responseBody,
             );
         }
+        // 400, 401, 403, 404, 422, and 429 are returned above, so 400 is not this boundary.
+        /** @infection-ignore-all */
         if ($statusCode >= 400 && $statusCode < 500) {
-            if ($statusCode === 400) {
-                return new FgaApiValidationException(...$args);
-            }
-
             return new FgaApiException(...$args);
         }
 
@@ -100,10 +152,10 @@ final class ErrorMapper
     /**
      * @return array{0: ?string, 1: string}
      */
-    private function parseErrorBody(ResponseInterface $response): array
+    private function parseErrorBody(string $raw): array
     {
-        $raw = (string) $response->getBody();
         if ($raw === '') {
+            // json_decode of an empty string fails and yields the same pair.
             /** @infection-ignore-all */
             return [null, ''];
         }
@@ -111,21 +163,33 @@ final class ErrorMapper
         try {
             $decoded = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            /** @infection-ignore-all */
-            return [null, $raw];
+            return [null, $this->bodyForMessage($raw)];
         }
 
         if (!is_array($decoded)) {
+            // Reading offsets on a non-array still falls back to the raw body.
             /** @infection-ignore-all */
-            return [null, $raw];
+            return [null, $this->bodyForMessage($raw)];
         }
 
         $code = isset($decoded['code']) && is_string($decoded['code']) ? $decoded['code'] : null;
-        $message = isset($decoded['message']) && is_string($decoded['message'])
-            ? $decoded['message']
-            : $raw;
+        if (isset($decoded['message']) && is_string($decoded['message'])) {
+            $message = $decoded['message'];
+        } else {
+            $message = $this->bodyForMessage($raw);
+        }
 
         return [$code, $message];
+    }
+
+    private function bodyForMessage(string $raw): string
+    {
+        $stripped = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $raw) ?? $raw;
+        if (strlen($stripped) <= self::MAX_MESSAGE_BODY) {
+            return $stripped;
+        }
+
+        return substr($stripped, 0, self::MAX_MESSAGE_BODY) . '...';
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Tests\Contract;
 
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Tools\Codegen\Generator\NameConverter;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -62,7 +63,7 @@ final class ModelRoundTripTest extends TestCase
             /** @var callable(array<string, mixed>): object $fromArray */
             $model = $fromArray($example);
         } catch (\Throwable $e) {
-            if ($e instanceof FgaValidationException) {
+            if ($e instanceof FgaValidationException || $e instanceof FgaResponseDecodeException) {
                 self::markTestSkipped('OpenAPI example is not valid for generated model: ' . $e->getMessage());
             }
 

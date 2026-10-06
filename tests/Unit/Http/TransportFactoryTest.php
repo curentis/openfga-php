@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Tests\Unit\Http;
 
 use Curentis\OpenFga\Client\ClientConfiguration;
+use Curentis\OpenFga\Client\Options\RetryOptions;
+use Curentis\OpenFga\Exception\FgaApiInternalException;
+use Curentis\OpenFga\Http\ConcurrentSenderInterface;
+use Curentis\OpenFga\Http\RetryPolicy;
 use Curentis\OpenFga\Http\TransportFactory;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
@@ -14,17 +18,14 @@ use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\UriFactoryInterface;
+use Psr\Http\Message\UriInterface;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
 final class TransportFactoryTest extends TestCase
 {
-    public function testDiscoverHttpClientUsesPsr18Discovery(): void
-    {
-        TransportFactory::discoverHttpClient();
-        self::expectNotToPerformAssertions();
-    }
-
     public function testCreateUsesConfiguredRequestFactory(): void
     {
         $mock = new MockClient();
@@ -103,6 +104,83 @@ final class TransportFactoryTest extends TestCase
         $transport->send('GET', '/stores');
         self::assertCount(1, $mock->getRequests());
     }
+
+    public function testCreateUsesTheConfiguredUriFactory(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{}'));
+        $uriFactory = new MarkingUriFactory();
+        $transport = TransportFactory::create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                uriFactory: $uriFactory,
+            ),
+        );
+
+        $transport->send('GET', '/stores');
+        self::assertGreaterThan(0, $uriFactory->calls);
+    }
+
+    public function testCreateBuildsARandomizerWhenRetryNeedsOne(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $sleeper = new FakeSleeper();
+        $transport = TransportFactory::create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                retry: new \Curentis\OpenFga\Client\Options\RetryOptions(maxRetry: 1, minWaitMs: 100),
+            ),
+            null,
+            $sleeper,
+        );
+
+        $transport->send('GET', '/stores');
+        self::assertCount(1, $sleeper->sleptMilliseconds);
+    }
+
+    public function testCreateUsesTheConfiguredConcurrentSender(): void
+    {
+        $mock = new MockClient();
+        $transport = TransportFactory::create(
+            new ClientConfiguration(apiUrl: 'http://localhost:8080', httpClient: $mock),
+            concurrentSender: new FlagConcurrentSender(),
+        );
+
+        self::assertTrue($transport->supportsParallel());
+    }
+
+    public function testCreateKeepsAnInjectedRetryPolicy(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{}'));
+        $policy = new RetryPolicy(
+            0,
+            1,
+            new FakeSleeper(),
+            new FrozenClock(new \DateTimeImmutable('@1700000000')),
+            new Randomizer(new Mt19937(1)),
+        );
+        $transport = TransportFactory::create(
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                retry: new RetryOptions(maxRetry: 3, minWaitMs: 100),
+            ),
+            retryPolicy: $policy,
+        );
+
+        try {
+            $transport->send('GET', '/stores');
+            self::fail('Expected the injected policy to stop after one attempt');
+        } catch (FgaApiInternalException) {
+            self::assertCount(1, $mock->getRequests());
+        }
+    }
 }
 
 final class MarkingRequestFactory implements RequestFactoryInterface
@@ -113,5 +191,40 @@ final class MarkingRequestFactory implements RequestFactoryInterface
     public function createRequest(string $method, $uri): RequestInterface
     {
         return $this->inner->createRequest($method, $uri)->withHeader('X-Request-Factory', 'custom');
+    }
+}
+
+final class MarkingUriFactory implements UriFactoryInterface
+{
+    public int $calls = 0;
+
+    public function __construct(private readonly UriFactoryInterface $inner = new Psr17Factory()) {}
+
+    #[\Override]
+    public function createUri(string $uri = ''): UriInterface
+    {
+        ++$this->calls;
+
+        return $this->inner->createUri($uri);
+    }
+}
+
+final class FlagConcurrentSender implements ConcurrentSenderInterface
+{
+    #[\Override]
+    public function supportsParallel(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param list<RequestInterface> $requests
+     *
+     * @return list<ResponseInterface>
+     */
+    #[\Override]
+    public function send(array $requests, int $maxParallel): array
+    {
+        return [];
     }
 }

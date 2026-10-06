@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Any implements \JsonSerializable
 {
@@ -23,7 +23,7 @@ final readonly class Any implements \JsonSerializable
                 $atType = null;
             } else {
                 if (!is_string($atType)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . '@type'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . '@type'));
                 }
             }
         }

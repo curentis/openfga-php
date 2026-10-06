@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Credentials;
 
+use Curentis\OpenFga\Exception\FgaApiException;
+use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaTokenExchangeException;
 use Curentis\OpenFga\Http\JsonBody;
 use Curentis\OpenFga\Http\RetryPolicy;
+use Curentis\OpenFga\Observability\SdkTelemetry;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -30,7 +33,17 @@ final class TokenProvider
         private readonly ClockInterface $clock,
         private readonly Randomizer $randomizer,
         private readonly ?CacheInterface $cache = null,
+        private readonly TokenCacheCodec $cacheCodec = new JsonTokenCacheCodec(),
+        private readonly SdkTelemetry $telemetry = new SdkTelemetry(),
     ) {}
+
+    public function invalidate(): void
+    {
+        $this->memoryToken = null;
+        if ($this->cache !== null) {
+            $this->cache->delete($this->cacheKey());
+        }
+    }
 
     public function getAccessToken(): string
     {
@@ -45,15 +58,47 @@ final class TokenProvider
 
     private function refreshToken(int $now): AccessToken
     {
-        $response = $this->retryPolicy->send(
-            fn() => $this->httpClient->sendRequest($this->buildTokenRequest($now)),
-            'POST',
-            '/oauth/token',
-            null,
-        );
+        $endpoint = $this->credentials->tokenEndpoint();
+        $path = parse_url($endpoint, PHP_URL_PATH);
+        // IssuerUrl::tokenEndpoint() always returns a non-empty path.
+        /** @infection-ignore-all */
+        $endpointPath = is_string($path) && $path !== '' ? $path : '/oauth/token';
+        try {
+            $response = $this->retryPolicy->send(
+                fn() => $this->httpClient->sendRequest($this->buildTokenRequest($now)),
+                'POST',
+                $endpointPath,
+                null,
+                null,
+                false,
+            );
+        } catch (FgaApiException|FgaNetworkException $exception) {
+            throw $this->tokenExchangeException($exception, $endpointPath);
+        }
 
         $status = $response->getStatusCode();
-        $payload = JsonBody::decode((string) $response->getBody());
+        try {
+            $payload = JsonBody::decode((string) $response->getBody());
+        } catch (\JsonException $exception) {
+            throw $this->tokenExchangeException(
+                new FgaTokenExchangeException(
+                    'Token endpoint returned a non-JSON response.',
+                    $status,
+                    null,
+                    'non-JSON token response',
+                    null,
+                    'POST',
+                    $endpointPath,
+                    null,
+                    [],
+                    IssuerUrl::normalize($this->credentials->apiTokenIssuer),
+                    $this->credentials->apiAudience,
+                    $this->credentials->clientId,
+                    $exception,
+                ),
+                $endpointPath,
+            );
+        }
         $accessToken = isset($payload['access_token']) && is_string($payload['access_token'])
             ? $payload['access_token']
             : '';
@@ -76,9 +121,9 @@ final class TokenProvider
             );
         }
 
-        $jitter = $this->randomizer->getInt(0, 60);
-        $expiresAt = $now + $expiresIn - 300 - $jitter;
+        $expiresAt = $this->expiryEpoch($now, $expiresIn);
         $token = new AccessToken($accessToken, $expiresAt);
+        $this->telemetry->tokenRefreshed($this->credentials->clientId);
         $this->memoryToken = $token;
         $this->storeCache($token, $expiresAt);
 
@@ -155,9 +200,7 @@ final class TokenProvider
         }
 
         if ($this->cache === null) {
-            // @codeCoverageIgnoreStart
             return null;
-            // @codeCoverageIgnoreEnd
         }
 
         $cached = $this->cache->get($this->cacheKey());
@@ -165,16 +208,12 @@ final class TokenProvider
             return null;
         }
 
-        $separatorAt = strpos($cached, '|');
-        if (!is_int($separatorAt) || $separatorAt < 1) {
-            return null;
-        }
-        $expiresAtRaw = substr($cached, $separatorAt + 1);
-        if (!is_numeric($expiresAtRaw)) {
+        $decoded = $this->cacheCodec->decode($cached);
+        if ($decoded === null) {
             return null;
         }
 
-        $token = new AccessToken(substr($cached, 0, $separatorAt), (int) $expiresAtRaw);
+        $token = new AccessToken($decoded[0], $decoded[1]);
         if ($token->isExpiredAt($now)) {
             return null;
         }
@@ -187,17 +226,80 @@ final class TokenProvider
     private function storeCache(AccessToken $token, int $ttlEpoch): void
     {
         if ($this->cache === null) {
-            // @codeCoverageIgnoreStart
             return;
-            // @codeCoverageIgnoreEnd
         }
 
         $now = $this->clock->now()->getTimestamp();
+        // Expiry is at least one second ahead, so max(0, …) matches max(1, …).
+        /** @infection-ignore-all */
         $ttlSeconds = max(1, $ttlEpoch - $now);
         $this->cache->set(
             $this->cacheKey(),
-            $token->accessToken . '|' . $token->expiresAtEpoch,
+            $this->cacheCodec->encode($token->accessToken, $token->expiresAtEpoch),
             $ttlSeconds,
         );
+    }
+
+    private function expiryEpoch(int $now, int $expiresIn): int
+    {
+        $buffer = min(300, intdiv($expiresIn, 10));
+        $jitterMax = min(60, intdiv($expiresIn, 20));
+        $jitter = $jitterMax > 0 ? $this->randomizer->getInt(0, $jitterMax) : 0;
+
+        // expiresIn is at least 1 and the buffer plus jitter stay below it.
+        return $now + ($expiresIn - $buffer - $jitter);
+    }
+
+    private function tokenExchangeException(\Throwable $exception, string $endpointPath): FgaTokenExchangeException
+    {
+        if ($exception instanceof FgaTokenExchangeException) {
+            return $exception;
+        }
+
+        $status = $exception instanceof FgaApiException ? $exception->statusCode : 0;
+        $body = $exception instanceof FgaApiException ? $exception->responseBody : '';
+        [$error, $description] = $this->oauthError($body !== '' ? $body : $exception->getMessage());
+        $message = $description !== ''
+            ? sprintf('Token endpoint rejected the client (%s).', $description)
+            : sprintf('Token endpoint request failed (%s).', $error !== '' ? $error : $exception->getMessage());
+
+        return new FgaTokenExchangeException(
+            $message,
+            $status,
+            $error !== '' ? $error : null,
+            $description !== '' ? $description : $exception->getMessage(),
+            $exception instanceof FgaApiException ? $exception->requestId : null,
+            'POST',
+            $endpointPath,
+            null,
+            $exception instanceof FgaApiException ? $exception->responseHeaders : [],
+            IssuerUrl::normalize($this->credentials->apiTokenIssuer),
+            $this->credentials->apiAudience,
+            $this->credentials->clientId,
+            $exception,
+        );
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function oauthError(string $body): array
+    {
+        try {
+            $decoded = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return ['', ''];
+        }
+        if (!is_array($decoded)) {
+            // Offset reads on a non-array still produce an empty error pair.
+            /** @infection-ignore-all */
+            return ['', ''];
+        }
+        $error = isset($decoded['error']) && is_string($decoded['error']) ? $decoded['error'] : '';
+        $description = isset($decoded['error_description']) && is_string($decoded['error_description'])
+            ? $decoded['error_description']
+            : '';
+
+        return [$error, $description];
     }
 }

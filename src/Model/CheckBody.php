@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class CheckBody implements \JsonSerializable
 {
@@ -23,10 +23,10 @@ final readonly class CheckBody implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('tuple_key', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         if (!is_array($data['tuple_key'])) {
-            throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tuple_key'));
         }
         $tupleKey = CheckRequestTupleKey::fromArray($data['tuple_key'], ($path === '' ? '' : $path . '.') . 'tuple_key');
         $authorizationModelId = null;
@@ -36,7 +36,7 @@ final readonly class CheckBody implements \JsonSerializable
                 $authorizationModelId = null;
             } else {
                 if (!is_string($authorizationModelId)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'authorization_model_id'));
                 }
             }
         }
@@ -47,14 +47,14 @@ final readonly class CheckBody implements \JsonSerializable
                 $consistency = null;
             } else {
                 if (!is_string($consistency)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
                 if (!in_array($consistency, [
                     0 => 'UNSPECIFIED',
                     1 => 'MINIMIZE_LATENCY',
                     2 => 'HIGHER_CONSISTENCY',
                 ], true)) {
-                    throw new FgaValidationException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
+                    throw new FgaResponseDecodeException(sprintf('%s: invalid enum value', ($path === '' ? '' : $path . '.') . 'consistency'));
                 }
             }
         }
@@ -65,7 +65,7 @@ final readonly class CheckBody implements \JsonSerializable
                 $context = null;
             } else {
                 if (!is_array($context)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'context'));
                 }
             }
         }
@@ -76,7 +76,7 @@ final readonly class CheckBody implements \JsonSerializable
                 $contextualTuples = null;
             } else {
                 if (!is_array($contextualTuples)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'contextual_tuples'));
                 }
                 $contextualTuples = ContextualTupleKeys::fromArray($contextualTuples, ($path === '' ? '' : $path . '.') . 'contextual_tuples');
             }
@@ -88,7 +88,7 @@ final readonly class CheckBody implements \JsonSerializable
                 $trace = null;
             } else {
                 if (!is_bool($trace)) {
-                    throw new FgaValidationException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'trace'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected bool', ($path === '' ? '' : $path . '.') . 'trace'));
                 }
             }
         }

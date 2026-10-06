@@ -8,22 +8,25 @@ use Curentis\OpenFga\Credentials\ApiToken;
 use Curentis\OpenFga\Credentials\CredentialsInterface;
 use Curentis\OpenFga\Credentials\NoCredentials;
 
-/**
- * @internal
- */
 final class AuthorizationHeaderProvider
 {
     /** @var ?\Closure(): string */
     private ?\Closure $tokenResolver;
 
+    /** @var ?\Closure(): void */
+    private ?\Closure $invalidateToken;
+
     /**
      * @param ?\Closure(): string $tokenResolver
+     * @param ?\Closure(): void   $invalidateToken
      */
     public function __construct(
         private readonly CredentialsInterface $credentials,
         ?callable $tokenResolver = null,
+        ?callable $invalidateToken = null,
     ) {
         $this->tokenResolver = $tokenResolver !== null ? $tokenResolver(...) : null;
+        $this->invalidateToken = $invalidateToken !== null ? $invalidateToken(...) : null;
     }
 
     public function authorizationHeader(): ?string
@@ -41,5 +44,16 @@ final class AuthorizationHeaderProvider
         }
 
         return null;
+    }
+
+    public function invalidate(): bool
+    {
+        if ($this->invalidateToken === null) {
+            return false;
+        }
+
+        ($this->invalidateToken)();
+
+        return true;
     }
 }

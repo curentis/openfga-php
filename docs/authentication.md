@@ -50,7 +50,7 @@ new ClientConfiguration(
 );
 ```
 
-Tokens are fetched automatically before store-scoped calls. Optional **PSR-16** cache:
+Tokens are fetched automatically before store-scoped calls. The cached payload is JSON (`token`, `expiresAt`). Without `tokenCacheKey` that payload is plaintext in the PSR-16 cache; see [production.md](production.md). Optional **PSR-16** cache:
 
 ```php
 use Symfony\Component\Cache\Psr16Cache;

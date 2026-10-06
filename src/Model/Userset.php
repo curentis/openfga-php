@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class Userset implements \JsonSerializable
 {
@@ -29,7 +29,7 @@ final readonly class Userset implements \JsonSerializable
                 $computedUserset = null;
             } else {
                 if (!is_array($computedUserset)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'computedUserset'));
                 }
                 $computedUserset = ObjectRelation::fromArray($computedUserset, ($path === '' ? '' : $path . '.') . 'computedUserset');
             }
@@ -41,7 +41,7 @@ final readonly class Userset implements \JsonSerializable
                 $difference = null;
             } else {
                 if (!is_array($difference)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'difference'));
                 }
                 $difference = Difference::fromArray($difference, ($path === '' ? '' : $path . '.') . 'difference');
             }
@@ -53,7 +53,7 @@ final readonly class Userset implements \JsonSerializable
                 $intersection = null;
             } else {
                 if (!is_array($intersection)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'intersection'));
                 }
                 $intersection = Usersets::fromArray($intersection, ($path === '' ? '' : $path . '.') . 'intersection');
             }
@@ -65,7 +65,7 @@ final readonly class Userset implements \JsonSerializable
                 $thisUserset = null;
             } else {
                 if (!is_array($thisUserset)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'this'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'this'));
                 }
             }
         }
@@ -76,7 +76,7 @@ final readonly class Userset implements \JsonSerializable
                 $tupleToUserset = null;
             } else {
                 if (!is_array($tupleToUserset)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'tupleToUserset'));
                 }
                 $tupleToUserset = TupleToUserset::fromArray($tupleToUserset, ($path === '' ? '' : $path . '.') . 'tupleToUserset');
             }
@@ -88,7 +88,7 @@ final readonly class Userset implements \JsonSerializable
                 $union = null;
             } else {
                 if (!is_array($union)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'union'));
                 }
                 $union = Usersets::fromArray($union, ($path === '' ? '' : $path . '.') . 'union');
             }

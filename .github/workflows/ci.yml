@@ -23,7 +23,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +52,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
       - if: matrix.deps == 'lowest'
         run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-progress
+      - run: composer audit --locked --abandoned=ignore
       - run: composer validate --strict
       - run: composer normalize --dry-run
       - run: composer workflows
@@ -68,17 +68,13 @@ jobs:
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
         run: composer test:mutation
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: build/clover.xml
-          flags: unit
-          use_oidc: true
-          fail_ci_if_error: false
-      - if: ${{ !cancelled() && matrix.php == '8.3' && matrix.deps == 'locked' }}
-        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
-        with:
-          files: build/coverage-xml/junit.xml
-          use_oidc: true
+          name: coverage
+          path: |
+            build/clover.xml
+            build/coverage-xml/junit.xml
+          if-no-files-found: error
 
   integration:
     name: integration (PHP ${{ matrix.php }}, OpenFGA ${{ matrix.openfga }})
@@ -118,10 +114,38 @@ jobs:
       - if: failure()
         run: docker logs openfga
 
+  coverage:
+    name: coverage
+    needs: check
+    if: always() && needs.check.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage
+          path: build
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: build/clover.xml
+          flags: unit
+          use_oidc: true
+          fail_ci_if_error: false
+      - uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          files: build/coverage-xml/junit.xml
+          use_oidc: true
+
   gate:
     name: gate
     if: always()
-    needs: [check, integration]
+    needs: [check, integration, coverage]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

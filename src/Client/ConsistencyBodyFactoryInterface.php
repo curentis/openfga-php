@@ -11,9 +11,9 @@ use Curentis\OpenFga\Model\ListUsersBody;
 
 interface ConsistencyBodyFactoryInterface
 {
-    public function expand(ExpandBody $body, ConsistencyPreference $consistency, ?string $authorizationModelId): ExpandBody;
+    public function expand(ExpandBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ExpandBody;
 
-    public function listObjects(ListObjectsBody $body, ConsistencyPreference $consistency): ListObjectsBody;
+    public function listObjects(ListObjectsBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ListObjectsBody;
 
-    public function listUsers(ListUsersBody $body, ConsistencyPreference $consistency): ListUsersBody;
+    public function listUsers(ListUsersBody $body, ?ConsistencyPreference $consistency, ?string $authorizationModelId): ListUsersBody;
 }

@@ -7,6 +7,8 @@ namespace Curentis\OpenFga\Tests\Integration;
 use Curentis\OpenFga\Client\ClientConfiguration;
 use Curentis\OpenFga\Client\OpenFgaClientFactory;
 use Curentis\OpenFga\Client\Options\ConflictOptions;
+use Curentis\OpenFga\Client\Options\OnDuplicateWrites;
+use Curentis\OpenFga\Client\Options\OnMissingDeletes;
 use Curentis\OpenFga\Client\Options\WriteOptions;
 use Curentis\OpenFga\Client\Request\ClientCheckRequest;
 use Curentis\OpenFga\Client\Request\ClientTupleKey;
@@ -60,7 +62,7 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
 
             $fga->writeTuples(
                 [$tuple],
-                new WriteOptions(conflict: new ConflictOptions(onDuplicateWrites: 'ignore')),
+                new WriteOptions(conflict: new ConflictOptions(onDuplicateWrites: OnDuplicateWrites::Ignore)),
             );
 
             self::assertTrue($fga->check(new ClientCheckRequest(
@@ -80,7 +82,7 @@ final class WriteTuplesReadLatestIntegrationTest extends TestCase
 
             $fga->deleteTuples([
                 new ClientTupleKeyWithoutCondition('user:anne', 'viewer', 'document:plan'),
-            ], new WriteOptions(conflict: new ConflictOptions(onMissingDeletes: 'ignore')));
+            ], new WriteOptions(conflict: new ConflictOptions(onMissingDeletes: OnMissingDeletes::Ignore)));
 
             self::assertFalse($fga->check(new ClientCheckRequest(
                 'user:anne',

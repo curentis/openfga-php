@@ -20,6 +20,7 @@ class FgaApiException extends \RuntimeException implements FgaException
         public readonly ?string $storeId,
         public readonly array $responseHeaders,
         ?\Throwable $previous = null,
+        public readonly string $responseBody = '',
     ) {
         parent::__construct($message, $statusCode, $previous);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Api;
 
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Model\BatchCheckBody;
 use Curentis\OpenFga\Model\BatchCheckResponse;
 use Curentis\OpenFga\Model\CheckBody;
@@ -33,6 +34,8 @@ use Psr\Http\Message\ResponseInterface;
 
 interface OpenFgaApiInterface
 {
+    public function withCallOptions(?RetryOptions $retry): self;
+
     /**
      * @param array<string, string> $headers
      */
@@ -94,7 +97,7 @@ interface OpenFgaApiInterface
     /**
      * @param array<string, string> $headers
      */
-    public function write(string $storeId, WriteBody $body, array $headers = []): WriteResponse;
+    public function write(string $storeId, WriteBody $body, array $headers = [], bool $idempotent = false): WriteResponse;
 
     /**
      * @param array<string, string> $headers

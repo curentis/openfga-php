@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Curentis\OpenFga\Client;
 
 use Curentis\OpenFga\Client\Options\BatchCheckOptions;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
 use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
 use Curentis\OpenFga\Model\ConsistencyPreference;
@@ -22,5 +23,6 @@ interface BatchCheckRunnerInterface
         ?string $authorizationModelId,
         ?ConsistencyPreference $consistency,
         array $headers,
+        ?RetryOptions $retry = null,
     ): ClientBatchCheckResponse;
 }

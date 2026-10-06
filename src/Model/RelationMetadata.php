@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class RelationMetadata implements \JsonSerializable
 {
@@ -26,12 +26,12 @@ final readonly class RelationMetadata implements \JsonSerializable
                 $directlyRelatedUserTypes = null;
             } else {
                 if (!is_array($directlyRelatedUserTypes)) {
-                    throw new FgaValidationException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'directly_related_user_types'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected array', ($path === '' ? '' : $path . '.') . 'directly_related_user_types'));
                 }
                 $directlyRelatedUserTypesList = [];
                 foreach ($directlyRelatedUserTypes as $idx => $item) {
                     if (!is_array($item)) {
-                        throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
+                        throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . $idx));
                     }
                     $directlyRelatedUserTypesList[] = RelationReference::fromArray($item, ($path === '' ? '' : $path . '.') . (string) $idx);
                 }
@@ -45,7 +45,7 @@ final readonly class RelationMetadata implements \JsonSerializable
                 $module = null;
             } else {
                 if (!is_string($module)) {
-                    throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'module'));
                 }
             }
         }
@@ -56,7 +56,7 @@ final readonly class RelationMetadata implements \JsonSerializable
                 $sourceInfo = null;
             } else {
                 if (!is_array($sourceInfo)) {
-                    throw new FgaValidationException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
+                    throw new FgaResponseDecodeException(sprintf('%s: expected object', ($path === '' ? '' : $path . '.') . 'source_info'));
                 }
                 $sourceInfo = SourceInfo::fromArray($sourceInfo, ($path === '' ? '' : $path . '.') . 'source_info');
             }

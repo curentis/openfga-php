@@ -18,11 +18,11 @@ flowchart LR
 
 ## Replace the whole client factory
 
-Set `clientFactory` on `ClientConfiguration`. `OpenFgaClientFactory::create()` delegates to your implementation:
+Call your factory yourself. `ClientConfiguration` holds values and the HTTP stack, not a factory, so a custom factory can safely delegate to `DefaultOpenFgaClientFactory` with the same configuration:
 
 ```php
 use Curentis\OpenFga\Client\ClientConfiguration;
-use Curentis\OpenFga\Client\OpenFgaClientFactory;
+use Curentis\OpenFga\Client\DefaultOpenFgaClientFactory;
 use Curentis\OpenFga\Client\OpenFgaClientFactoryInterface;
 use Curentis\OpenFga\Client\OpenFgaClientInterface;
 
@@ -33,19 +33,14 @@ final class LoggingClientFactory implements OpenFgaClientFactoryInterface
         ?\Psr\Clock\ClockInterface $clock = null,
         ?\Random\Randomizer $randomizer = null,
     ): OpenFgaClientInterface {
-        $inner = (new \Curentis\OpenFga\Client\DefaultOpenFgaClientFactory())->create(
-            $configuration,
-            $clock,
-            $randomizer,
-        );
+        $inner = (new DefaultOpenFgaClientFactory())->create($configuration, $clock, $randomizer);
 
         return new LoggingOpenFgaClientDecorator($inner);
     }
 }
 
-$fga = OpenFgaClientFactory::create(new ClientConfiguration(
+$fga = (new LoggingClientFactory())->create(new ClientConfiguration(
     apiUrl: 'http://localhost:8080',
-    clientFactory: new LoggingClientFactory(),
 ));
 ```
 
@@ -68,6 +63,7 @@ use Curentis\OpenFga\Client\ClientComponentFactoryInterface;
 use Curentis\OpenFga\Client\ConsistencyBodyFactoryInterface;
 use Curentis\OpenFga\Client\DefaultClientComponentFactory;
 use Curentis\OpenFga\Client\WriteRunnerInterface;
+use Curentis\OpenFga\Http\TransportInterface;
 
 final class MyComponentFactory implements ClientComponentFactoryInterface
 {
@@ -80,9 +76,9 @@ final class MyComponentFactory implements ClientComponentFactoryInterface
         return new MetricsWriteRunner($this->defaults->createWriteRunner($api));
     }
 
-    public function createBatchCheckRunner(OpenFgaApiInterface $api): BatchCheckRunnerInterface
+    public function createBatchCheckRunner(OpenFgaApiInterface $api, TransportInterface $transport): BatchCheckRunnerInterface
     {
-        return $this->defaults->createBatchCheckRunner($api);
+        return $this->defaults->createBatchCheckRunner($api, $transport);
     }
 
     public function createConsistencyBodyFactory(): ConsistencyBodyFactoryInterface
@@ -103,9 +99,12 @@ Runnable sketch: [examples/custom_components.php](../examples/custom_components.
 | Interface | Default class | When to override |
 |-----------|---------------|------------------|
 | `TransportInterface` | `Transport` | Rare; prefer `ClientConfiguration` http client and headers |
+| `RetryPolicyInterface` | `RetryPolicy` | Custom backoff, or reuse it inside a replacement transport |
 | `OpenFgaApiInterface` | `OpenFgaApi` | Mock in tests, or wrap with caching/logging |
 
-`DefaultOpenFgaClientFactory` wires these unless you provide a custom `OpenFgaClientFactoryInterface` that builds the graph yourself.
+`ErrorMapper` is public and maps HTTP status codes onto the exception hierarchy. A replacement `Transport` is not wrapped by the default retry policy: reuse `RetryPolicy` and `ErrorMapper`, or implement that behavior yourself.
+
+`DefaultOpenFgaClientFactory` is the composition root. Pass `uriFactory` when you replace the PSR-17 stack so URI creation stays on the same implementation as requests and streams. Pass `telemetry` (`SdkTelemetry`) for PSR-3 logs and PSR-14 events. Events are `RequestFinished`, `RetryScheduled`, and `TokenRefreshed`. Logs never include tokens, headers, or bodies.
 
 ## Testing
 

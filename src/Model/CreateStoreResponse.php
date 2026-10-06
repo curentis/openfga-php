@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Model;
 
-use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Exception\FgaResponseDecodeException;
 
 final readonly class CreateStoreResponse implements \JsonSerializable
 {
@@ -20,31 +20,31 @@ final readonly class CreateStoreResponse implements \JsonSerializable
     public static function fromArray(array $data, string $path = ''): self
     {
         if (!array_key_exists('created_at', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'created_at'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'created_at'));
         }
         if (!is_string($data['created_at'])) {
-            throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'created_at'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'created_at'));
         }
         $createdAt = new \DateTimeImmutable($data['created_at']);
         if (!array_key_exists('id', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'id'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'id'));
         }
         if (!is_string($data['id'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'id'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'id'));
         }
         $id = $data['id'];
         if (!array_key_exists('name', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'name'));
         }
         if (!is_string($data['name'])) {
-            throw new FgaValidationException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected string', ($path === '' ? '' : $path . '.') . 'name'));
         }
         $name = $data['name'];
         if (!array_key_exists('updated_at', $data)) {
-            throw new FgaValidationException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'updated_at'));
+            throw new FgaResponseDecodeException(sprintf('%s: required', ($path === '' ? '' : $path . '.') . 'updated_at'));
         }
         if (!is_string($data['updated_at'])) {
-            throw new FgaValidationException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'updated_at'));
+            throw new FgaResponseDecodeException(sprintf('%s: expected date-time string', ($path === '' ? '' : $path . '.') . 'updated_at'));
         }
         $updatedAt = new \DateTimeImmutable($data['updated_at']);
         return new self(createdAt: $createdAt, id: $id, name: $name, updatedAt: $updatedAt);
