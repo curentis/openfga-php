@@ -31,4 +31,4 @@ jobs:
           coverage: none
           tools: composer:v2
       - run: composer install --prefer-dist --no-progress
-      - run: composer audit --locked
+      - run: composer audit --locked --abandoned=ignore

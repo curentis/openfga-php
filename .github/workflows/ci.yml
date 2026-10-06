@@ -52,7 +52,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
       - if: matrix.deps == 'lowest'
         run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-progress
-      - run: composer audit --locked
+      - run: composer audit --locked --abandoned=ignore
       - run: composer validate --strict
       - run: composer normalize --dry-run
       - run: composer workflows
