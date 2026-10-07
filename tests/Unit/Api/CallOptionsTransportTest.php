@@ -7,10 +7,8 @@ namespace Curentis\OpenFga\Tests\Unit\Api;
 use Curentis\OpenFga\Api\CallOptionsTransport;
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Http\TransportInterface;
-use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 final class CallOptionsTransportTest extends TestCase
@@ -33,10 +31,6 @@ final class CallOptionsTransportTest extends TestCase
         self::assertSame($wrapped, $inner->retry);
         self::assertTrue($inner->idempotent);
 
-        $request = (new Psr17Factory())->createRequest('GET', 'http://localhost/stores');
-        self::assertSame([], $transport->sendAll([$request], 2, 'store'));
-        self::assertTrue($transport->supportsParallel());
-        self::assertSame('GET', $transport->buildRequest('GET', '/stores')->getMethod());
     }
 }
 
@@ -80,29 +74,5 @@ final class RecordingTransport implements TransportInterface
         $this->idempotent = $idempotent;
 
         return [];
-    }
-
-    #[\Override]
-    public function sendAll(array $requests, int $maxParallel, ?string $storeId = null): array
-    {
-        return [];
-    }
-
-    #[\Override]
-    public function supportsParallel(): bool
-    {
-        return true;
-    }
-
-    #[\Override]
-    public function buildRequest(
-        string $method,
-        string $pathTemplate,
-        array $pathParams = [],
-        array $query = [],
-        mixed $body = null,
-        array $requestHeaders = [],
-    ): RequestInterface {
-        return (new Psr17Factory())->createRequest($method, 'http://localhost' . $pathTemplate);
     }
 }

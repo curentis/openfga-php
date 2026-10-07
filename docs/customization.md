@@ -99,12 +99,14 @@ Runnable sketch: [examples/custom_components.php](../examples/custom_components.
 | Interface | Default class | When to override |
 |-----------|---------------|------------------|
 | `TransportInterface` | `Transport` | Rare; prefer `ClientConfiguration` http client and headers |
-| `RetryPolicyInterface` | `RetryPolicy` | Custom backoff, or reuse it inside a replacement transport |
+| `ParallelTransportInterface` | `Transport` | Optional capability: implement it on a custom transport to keep parallel batch checks |
+| `ConcurrentSenderInterface` | `GuzzleConcurrentSender` | Send a batch of PSR-7 requests concurrently with a client other than Guzzle |
+| `RetryPolicyInterface` | `RetryPolicy` | Custom backoff, or reuse it inside a replacement transport. `send()` receives a `RequestContext` (method, endpoint, route template, store id, idempotent). Implementations must be stateless: one instance is shared by every call and by the token provider |
 | `OpenFgaApiInterface` | `OpenFgaApi` | Mock in tests, or wrap with caching/logging |
 
 `ErrorMapper` is public and maps HTTP status codes onto the exception hierarchy. A replacement `Transport` is not wrapped by the default retry policy: reuse `RetryPolicy` and `ErrorMapper`, or implement that behavior yourself.
 
-`DefaultOpenFgaClientFactory` is the composition root. Pass `uriFactory` when you replace the PSR-17 stack so URI creation stays on the same implementation as requests and streams. Pass `telemetry` (`SdkTelemetry`) for PSR-3 logs and PSR-14 events. Events are `RequestFinished`, `RetryScheduled`, and `TokenRefreshed`. Logs never include tokens, headers, or bodies.
+`DefaultOpenFgaClientFactory` is the composition root. Pass `uriFactory` when you replace the PSR-17 stack so URI creation stays on the same implementation as requests and streams. Pass `telemetry` (`SdkTelemetry`) for PSR-3 logs and PSR-14 events. Events are `RequestFinished` (method, endpoint, route template, store id, status code or null, attempts, `durationMs`, `RequestOutcome`), `RetryScheduled` (the same request fields plus attempt and delay), and `TokenRefreshed`. Use `route` rather than `endpoint` as a metric label: it is the path template, so it has low cardinality. Logs never include tokens, headers, or bodies. Listener and logger exceptions are swallowed.
 
 ## Testing
 

@@ -35,4 +35,17 @@ final class PathTemplateTest extends TestCase
         self::assertSame('/healthz', PathTemplate::expand('/healthz', []));
     }
 
+
+    public function testDotSegmentsAreRejected(): void
+    {
+        foreach (['.', '..'] as $value) {
+            try {
+                PathTemplate::expand('/stores/{store_id}/check', ['store_id' => $value]);
+                self::fail('Expected a dot segment to be rejected');
+            } catch (FgaValidationException $exception) {
+                self::assertSame('Path parameter "store_id" must not be a dot segment.', $exception->getMessage());
+            }
+        }
+        self::assertSame('/stores/...%2F./check', PathTemplate::expand('/stores/{store_id}/check', ['store_id' => '.../.']));
+    }
 }

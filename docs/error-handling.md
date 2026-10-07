@@ -41,9 +41,11 @@ try {
 
 ## Retries
 
-`RetryOptions` controls `maxRetry` (0–15), `minWaitMs`, `maxElapsedMs` (default 10s), and `maxDelayMs` (default 5s). The SDK retries 429s and, for idempotent calls, network errors and 500–599 except 501. A retry is skipped when the next sleep would exceed `maxElapsedMs`.
+`RetryOptions` controls `maxRetry` (0–15), `minWaitMs`, `maxElapsedMs` (default 10s), and `maxDelayMs` (default 5s). The SDK retries 429s and, for idempotent calls, network errors and 500–599 except 501. `maxElapsedMs` is measured from the first attempt and includes request time; a retry is skipped when the next sleep would end past that deadline.
 
-`write` is idempotent only when there is nothing to write or `OnDuplicateWrites::Ignore` is set, and there is nothing to delete or `OnMissingDeletes::Ignore` is set. Create store, write authorization model, write assertions, and the OAuth token request are not idempotent: they retry 429 only.
+`write` is idempotent only when there is nothing to write or `OnDuplicateWrites::Ignore` is set, and there is nothing to delete or `OnMissingDeletes::Ignore` is set. Create store, write authorization model, and write assertions are not idempotent: they retry 429 only. The OAuth token request builds a fresh request (and a fresh assertion `jti`) on every attempt, so it is retried like an idempotent call.
+
+`executeApiRequest()` and `executeStreamedApiRequest()` treat GET, HEAD, OPTIONS, and POST to `check`, `batch-check`, `expand`, `list-objects`, `streamed-list-objects`, `list-users`, and `read` as idempotent. Pass `idempotent: true` or `false` to override.
 
 Set `RequestOptions::$retry` to override the client default for one call.
 
@@ -51,8 +53,14 @@ On HTTP 401 from an OAuth credential, the SDK invalidates the cached token once,
 
 ## Batch check
 
-Each item is a `ClientBatchCheckItemResult` with `correlationId`, the original `check`, and `result` (`BatchCheckSingleResult`). If the server omits a correlation id, `result->allowed` is `false` and `result->error->message` explains the gap. Do not treat a missing entry as an implicit allow.
+Each item is a `ClientBatchCheckItemResult` with `correlationId`, the original `check`, and `result` (`BatchCheckSingleResult`). If the server omits a correlation id, `result->allowed` is `false` and `result->error->message` explains the gap. Do not treat a missing entry as an implicit allow. Match results by `correlationId` or `check`: a custom `BatchCheckRunnerInterface` does not have to keep input order.
+
+With `maxParallelRequests` above 1, a chunk that fails is mapped to the same exception a sequential call would raise. The first failing chunk is thrown and the other results are discarded.
 
 ## Non-transactional writes
 
-With `TransactionOptions(disable: true)`, tuples are written in chunks. 400, 422, and 404 become per-tuple failures and the run continues. Any other failure throws `FgaPartialWriteException` and later chunks are not sent.
+With `TransactionOptions(disable: true)`, tuples are written in chunks. 400, 422, and 404 become per-tuple failures and the run continues. Any other failure throws `FgaPartialWriteException` and later chunks are not sent. Delete chunks go first, then write chunks, and `tupleResults` lists them in that order.
+
+## Telemetry listeners
+
+PSR-14 listeners and PSR-3 loggers passed to `SdkTelemetry` run inline with the request. An exception from either is caught; a failing listener is reported as an `openfga.telemetry_failed` warning on the logger, and the SDK call continues. Keep listeners fast: they add to request latency.

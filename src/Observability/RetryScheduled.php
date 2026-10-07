@@ -9,6 +9,8 @@ final class RetryScheduled
     public function __construct(
         public readonly string $method,
         public readonly string $endpoint,
+        public readonly string $route,
+        public readonly ?string $storeId,
         public readonly int $attempt,
         public readonly int $delayMs,
     ) {}

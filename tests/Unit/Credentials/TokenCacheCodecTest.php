@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Tests\Unit\Credentials;
 
+use Curentis\OpenFga\Credentials\AccessToken;
 use Curentis\OpenFga\Credentials\JsonTokenCacheCodec;
 use Curentis\OpenFga\Credentials\SodiumTokenCacheCodec;
 use Curentis\OpenFga\Exception\FgaValidationException;
@@ -14,9 +15,11 @@ final class TokenCacheCodecTest extends TestCase
     public function testJsonCodecRoundTripsAndRejectsMalformedPayloads(): void
     {
         $codec = new JsonTokenCacheCodec();
-        $encoded = $codec->encode('token', 123);
-        self::assertSame(['token', 123], $codec->decode($encoded));
-        self::assertSame(['token', 123], $codec->decode('{"token":"token","expiresAt":"123"}'));
+        $encoded = $codec->encode(new AccessToken('token', 123, 100));
+        self::assertSame('{"token":"token","expiresAt":123,"refreshAt":100}', $encoded);
+        self::assertEquals(new AccessToken('token', 123, 100), $codec->decode($encoded));
+        self::assertEquals(new AccessToken('token', 123), $codec->decode('{"token":"token","expiresAt":"123"}'));
+        self::assertEquals(new AccessToken('token', 123), $codec->decode('{"token":"token","expiresAt":123,"refreshAt":"x"}'));
         self::assertNull($codec->decode('not-json'));
         self::assertNull($codec->decode('[]'));
         self::assertNull($codec->decode('{"token":1,"expiresAt":1}'));
@@ -27,8 +30,8 @@ final class TokenCacheCodecTest extends TestCase
     {
         $key = random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
         $codec = new SodiumTokenCacheCodec($key);
-        $encoded = $codec->encode('token', 99);
-        self::assertSame(['token', 99], $codec->decode($encoded));
+        $encoded = $codec->encode(new AccessToken('token', 99, 90));
+        self::assertEquals(new AccessToken('token', 99, 90), $codec->decode($encoded));
         self::assertNull($codec->decode('@@@'));
         self::assertNull($codec->decode(base64_encode('short')));
 

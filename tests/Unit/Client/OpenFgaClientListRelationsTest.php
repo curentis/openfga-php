@@ -4,8 +4,20 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Tests\Unit\Client;
 
+use Curentis\OpenFga\Api\OpenFgaApi;
+use Curentis\OpenFga\Client\BatchCheckRunnerInterface;
+use Curentis\OpenFga\Client\ClientConfiguration;
+use Curentis\OpenFga\Client\DefaultClientComponentFactory;
+use Curentis\OpenFga\Client\OpenFgaClient;
+use Curentis\OpenFga\Client\Options\BatchCheckOptions;
+use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Request\ClientListRelationsRequest;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckItemResult;
+use Curentis\OpenFga\Client\Response\ClientBatchCheckResponse;
+use Curentis\OpenFga\Model\BatchCheckSingleResult;
+use Curentis\OpenFga\Model\ConsistencyPreference;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
+use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Response;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -42,6 +54,57 @@ final class OpenFgaClientListRelationsTest extends MockTransportTestCase
         ));
 
         self::assertSame([], $response->relations);
+    }
+
+    public function testListRelationsDoesNotDependOnRunnerResultOrder(): void
+    {
+        $http = new MockClient();
+        $transport = $this->transport($http);
+        $api = new OpenFgaApi($transport);
+        $components = new DefaultClientComponentFactory();
+        $client = new OpenFgaClient(
+            new ClientConfiguration(storeId: '01ARZ3NDEKTSV4RRFFQ69G5FAV'),
+            $api,
+            $transport,
+            $components->createWriteRunner($api),
+            new ReversingBatchCheckRunner(['viewer' => true, 'editor' => false, 'admin' => true]),
+            $components->createConsistencyBodyFactory(),
+        );
+
+        $response = $client->listRelations(new ClientListRelationsRequest('user:anne', 'document:roadmap', ['viewer', 'editor', 'owner', 'admin']));
+
+        self::assertSame(['viewer', 'admin'], $response->relations);
+    }
+}
+
+final readonly class ReversingBatchCheckRunner implements BatchCheckRunnerInterface
+{
+    /** @param array<string, bool> $allowedByRelation */
+    public function __construct(private array $allowedByRelation) {}
+
+    #[\Override]
+    public function run(
+        string $storeId,
+        array $checks,
+        BatchCheckOptions $options,
+        ?string $authorizationModelId,
+        ?ConsistencyPreference $consistency,
+        array $headers,
+        ?RetryOptions $retry = null,
+    ): ClientBatchCheckResponse {
+        $results = [];
+        foreach (array_reverse($checks) as $index => $check) {
+            if (!array_key_exists($check->relation, $this->allowedByRelation)) {
+                continue;
+            }
+            $results[] = new ClientBatchCheckItemResult(
+                (string) $index,
+                $check,
+                new BatchCheckSingleResult($this->allowedByRelation[$check->relation]),
+            );
+        }
+
+        return new ClientBatchCheckResponse($results);
     }
 }
 

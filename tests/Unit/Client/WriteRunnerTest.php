@@ -68,8 +68,10 @@ final class WriteRunnerTest extends MockTransportTestCase
         self::assertCount(2, $response->tupleResults);
         self::assertTrue($response->tupleResults[0]->success);
         self::assertTrue($response->tupleResults[1]->success);
-        self::assertSame('write', $response->tupleResults[0]->operation);
-        self::assertSame('delete', $response->tupleResults[1]->operation);
+        self::assertSame('delete', $response->tupleResults[0]->operation);
+        self::assertSame('write', $response->tupleResults[1]->operation);
+        self::assertStringContainsString('"deletes"', (string) $mock->getRequests()[0]->getBody());
+        self::assertStringContainsString('"writes"', (string) $mock->getRequests()[1]->getBody());
         self::assertSame('1', $mock->getRequests()[0]->getHeaderLine('X-Custom'));
         self::assertSame('1', $mock->getRequests()[1]->getHeaderLine('X-Custom'));
         self::assertSame('Write', $mock->getRequests()[0]->getHeaderLine('X-OpenFGA-Client-Method'));

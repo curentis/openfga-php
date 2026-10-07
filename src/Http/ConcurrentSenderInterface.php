@@ -9,12 +9,14 @@ use Psr\Http\Message\ResponseInterface;
 
 interface ConcurrentSenderInterface
 {
-    public function supportsParallel(): bool;
-
     /**
-     * @param list<RequestInterface> $requests
+     * Returns one outcome per request, in input order. Responses with any status are returned rather
+     * than thrown; only transport failures are returned as exceptions.
      *
-     * @return list<ResponseInterface>
+     * @param list<RequestInterface> $requests
+     * @param positive-int           $maxParallel
+     *
+     * @return list<ResponseInterface|\Throwable>
      */
     public function send(array $requests, int $maxParallel): array;
 }

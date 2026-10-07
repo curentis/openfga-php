@@ -22,7 +22,7 @@ final class TransportFactory
         ?Sleeper $sleeper = null,
         ?Randomizer $randomizer = null,
         ?\Closure $tokenResolver = null,
-        ?RetryPolicy $retryPolicy = null,
+        ?RetryPolicyInterface $retryPolicy = null,
         ?\Closure $invalidateToken = null,
         ?ConcurrentSenderInterface $concurrentSender = null,
     ): Transport {
@@ -32,20 +32,14 @@ final class TransportFactory
         $uriFactory = $configuration->uriFactory ?? Psr17FactoryDiscovery::findUriFactory();
 
         $clock ??= new NativeClock();
-        $randomizer ??= new Randomizer();
-        $retry = $configuration->retry;
         // Swapping the operands would construct SystemSleeper and sleep for real.
         /** @infection-ignore-all */
-        $resolvedSleeper = $sleeper ?? new SystemSleeper();
-        $retryPolicy ??= new RetryPolicy(
-            $retry->maxRetry,
-            $retry->minWaitMs,
-            $resolvedSleeper,
+        $retryPolicy ??= RetryPolicy::fromOptions(
+            $configuration->retry,
+            $sleeper ?? new SystemSleeper(),
             $clock,
-            $randomizer,
-            maxElapsedMs: $retry->maxElapsedMs,
-            maxDelayMs: $retry->maxDelayMs,
-            telemetry: $configuration->telemetry,
+            $randomizer ?? new Randomizer(),
+            $configuration->telemetry,
         );
 
         return new Transport(
@@ -57,7 +51,9 @@ final class TransportFactory
             $uriFactory,
             $retryPolicy,
             new AuthorizationHeaderProvider($configuration->credentials, $tokenResolver, $invalidateToken),
-            $concurrentSender ?? new SequentialConcurrentSender($httpClient),
+            $concurrentSender,
+            telemetry: $configuration->telemetry,
+            clock: $clock,
         );
     }
 }

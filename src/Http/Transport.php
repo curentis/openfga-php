@@ -6,8 +6,12 @@ namespace Curentis\OpenFga\Http;
 
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Exception\FgaApiAuthenticationException;
+use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaResponseDecodeException;
+use Curentis\OpenFga\Observability\RequestOutcome;
+use Curentis\OpenFga\Observability\SdkTelemetry;
 use Curentis\OpenFga\Version;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
@@ -16,12 +20,13 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Psr\Http\Message\UriInterface;
 
-final class Transport implements TransportInterface
+final class Transport implements ParallelTransportInterface
 {
-    private readonly ConcurrentSenderInterface $concurrentSender;
+    private readonly string $basePath;
 
     /**
      * @param array<string, string> $defaultHeaders
+     * @param ?ConcurrentSenderInterface $concurrentSender enables `sendJsonAll()` concurrency; null sends sequentially
      */
     public function __construct(
         private readonly string $apiUrl,
@@ -32,9 +37,13 @@ final class Transport implements TransportInterface
         private readonly UriFactoryInterface $uriFactory,
         private readonly RetryPolicyInterface $retryPolicy,
         private readonly AuthorizationHeaderProvider $authorizationHeaderProvider,
-        ?ConcurrentSenderInterface $concurrentSender = null,
+        private readonly ?ConcurrentSenderInterface $concurrentSender = null,
+        private readonly ErrorMapper $errorMapper = new ErrorMapper(),
+        private readonly SdkTelemetry $telemetry = new SdkTelemetry(),
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
-        $this->concurrentSender = $concurrentSender ?? new SequentialConcurrentSender($httpClient);
+        $path = parse_url($apiUrl, PHP_URL_PATH);
+        $this->basePath = is_string($path) ? rtrim($path, '/') : '';
     }
 
     /**
@@ -54,24 +63,17 @@ final class Transport implements TransportInterface
         ?RetryOptions $retry = null,
         bool $idempotent = true,
     ): ResponseInterface {
-        $endpoint = $this->buildRequest($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders)
-            ->getUri()
-            ->getPath();
+        $context = $this->context($method, $pathTemplate, $pathParams, $storeId, $idempotent);
         $refreshed = false;
 
         while (true) {
             try {
                 return $this->retryPolicy->send(
-                    function () use ($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders): ResponseInterface {
-                        $request = $this->buildRequest($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders);
-
-                        return $this->httpClient->sendRequest($request);
-                    },
-                    $method,
-                    $endpoint,
-                    $storeId,
+                    fn(): ResponseInterface => $this->httpClient->sendRequest(
+                        $this->buildRequest($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders),
+                    ),
+                    $context,
                     $retry,
-                    $idempotent,
                 );
             } catch (FgaApiAuthenticationException $exception) {
                 if ($exception->statusCode !== 401 || $refreshed || !$this->authorizationHeaderProvider->invalidate()) {
@@ -102,45 +104,131 @@ final class Transport implements TransportInterface
         bool $idempotent = true,
     ): array {
         $response = $this->send($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders, $storeId, $retry, $idempotent);
-        $endpoint = PathTemplate::expand($pathTemplate, $pathParams);
 
-        return $this->decodeJson((string) $response->getBody(), $method, $endpoint);
+        return $this->decodeJson($response, $this->context($method, $pathTemplate, $pathParams, $storeId, $idempotent));
     }
 
     /**
-     * @param list<RequestInterface> $requests
+     * A call whose concurrent attempt fails with a status worth retrying, or with a transport error on
+     * an idempotent call, is sent again through `sendJson()`, where the retry policy and 401 refresh apply.
      *
-     * @return list<ResponseInterface>
+     * @param list<TransportCall> $calls
+     * @param positive-int        $maxParallel
+     *
+     * @return list<array<string, mixed>>
      */
     #[\Override]
-    public function sendAll(array $requests, int $maxParallel, ?string $storeId = null): array
+    public function sendJsonAll(array $calls, int $maxParallel, ?RetryOptions $retry = null): array
     {
-        if ($requests === []) {
-            /** @infection-ignore-all */
-            return [];
+        if ($this->concurrentSender === null || $maxParallel === 1) {
+            return array_map(fn(TransportCall $call): array => $this->sendCall($call, $retry), $calls);
         }
 
-        if ($maxParallel > 1 && $this->concurrentSender->supportsParallel()) {
-            return $this->concurrentSender->send($requests, $maxParallel);
+        $requests = array_map(
+            fn(TransportCall $call): RequestInterface => $this->buildRequest(
+                $call->method,
+                $call->pathTemplate,
+                $call->pathParams,
+                $call->query,
+                $call->body,
+                $call->headers,
+            ),
+            $calls,
+        );
+        $startedMs = $this->nowMs();
+        $outcomes = $this->concurrentSender->send($requests, $maxParallel);
+        $durationMs = $this->nowMs() - $startedMs;
+
+        $decoded = [];
+        foreach ($calls as $index => $call) {
+            $decoded[] = $this->resolveConcurrent($call, $outcomes[$index] ?? null, $durationMs, $retry);
         }
 
-        $responses = [];
-        foreach ($requests as $request) {
-            $responses[] = $this->retryPolicy->send(
-                fn(): ResponseInterface => $this->httpClient->sendRequest($request),
-                $request->getMethod(),
-                $request->getUri()->getPath(),
-                $storeId,
+        return $decoded;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveConcurrent(
+        TransportCall $call,
+        ResponseInterface|\Throwable|null $outcome,
+        int $durationMs,
+        ?RetryOptions $retry,
+    ): array {
+        $context = $this->context($call->method, $call->pathTemplate, $call->pathParams, $call->storeId, $call->idempotent);
+
+        if ($outcome instanceof ResponseInterface) {
+            $status = $outcome->getStatusCode();
+            if ($status >= 200 && $status < 300) {
+                $this->telemetry->requestFinished($context, $status, 1, $durationMs, RequestOutcome::Success);
+
+                return $this->decodeJson($outcome, $context);
+            }
+            if (!$this->worthResending($status, $call->idempotent)) {
+                $this->telemetry->requestFinished($context, $status, 1, $durationMs, RequestOutcome::HttpError);
+
+                throw $this->errorMapper->map(
+                    $call->method,
+                    $context->endpoint,
+                    $call->storeId,
+                    $outcome,
+                    RetryAfter::delayMs($outcome, $this->clock),
+                );
+            }
+
+            return $this->sendCall($call, $retry);
+        }
+
+        if (!$call->idempotent) {
+            $this->telemetry->requestFinished($context, null, 1, $durationMs, RequestOutcome::NetworkError);
+
+            throw new FgaNetworkException(
+                sprintf('OpenFGA API request failed (%s %s).', $call->method, $context->endpoint),
+                $call->method,
+                $context->endpoint,
+                $outcome,
             );
         }
 
-        return $responses;
+        return $this->sendCall($call, $retry);
     }
 
-    #[\Override]
-    public function supportsParallel(): bool
+    private function worthResending(int $status, bool $idempotent): bool
     {
-        return $this->concurrentSender->supportsParallel();
+        return $status === 401 || $status === 429 || ($idempotent && $status >= 500);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sendCall(TransportCall $call, ?RetryOptions $retry): array
+    {
+        return $this->sendJson(
+            $call->method,
+            $call->pathTemplate,
+            $call->pathParams,
+            $call->query,
+            $call->body,
+            $call->headers,
+            $call->storeId,
+            $retry,
+            $call->idempotent,
+        );
+    }
+
+    /**
+     * @param array<string, scalar|null> $pathParams
+     */
+    private function context(string $method, string $pathTemplate, array $pathParams, ?string $storeId, bool $idempotent): RequestContext
+    {
+        return new RequestContext(
+            $method,
+            $this->basePath . PathTemplate::expand($pathTemplate, $pathParams),
+            $pathTemplate,
+            $storeId,
+            $idempotent,
+        );
     }
 
     /**
@@ -148,14 +236,13 @@ final class Transport implements TransportInterface
      * @param array<string, scalar|null|list<scalar|null>> $query
      * @param array<string, string>                        $requestHeaders
      */
-    #[\Override]
-    public function buildRequest(
+    private function buildRequest(
         string $method,
         string $pathTemplate,
-        array $pathParams = [],
-        array $query = [],
-        mixed $body = null,
-        array $requestHeaders = [],
+        array $pathParams,
+        array $query,
+        mixed $body,
+        array $requestHeaders,
     ): RequestInterface {
         $path = PathTemplate::expand($pathTemplate, $pathParams);
         $uri = $this->buildUri($path, $query);
@@ -191,8 +278,9 @@ final class Transport implements TransportInterface
     /**
      * @return array<string, mixed>
      */
-    private function decodeJson(string $raw, string $method, string $endpoint): array
+    private function decodeJson(ResponseInterface $response, RequestContext $context): array
     {
+        $raw = (string) $response->getBody();
         if ($raw === '') {
             return [];
         }
@@ -201,7 +289,7 @@ final class Transport implements TransportInterface
             return JsonBody::decode($raw);
         } catch (\JsonException $exception) {
             throw new FgaResponseDecodeException(
-                sprintf('OpenFGA API returned a non-JSON response (%s %s).', $method, $endpoint),
+                sprintf('OpenFGA API returned a non-JSON response (%s %s).', $context->method, $context->endpoint),
                 $exception,
             );
         }
@@ -238,5 +326,10 @@ final class Transport implements TransportInterface
         }
 
         return $uri->withQuery(implode('&', $parts));
+    }
+
+    private function nowMs(): int
+    {
+        return (int) $this->clock->now()->format('Uv');
     }
 }

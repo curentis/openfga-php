@@ -7,6 +7,7 @@ namespace Curentis\OpenFga\Http;
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Exception\FgaNetworkException;
 use Curentis\OpenFga\Exception\FgaValidationException;
+use Curentis\OpenFga\Observability\RequestOutcome;
 use Curentis\OpenFga\Observability\SdkTelemetry;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientExceptionInterface;
@@ -16,12 +17,14 @@ use Random\Randomizer;
 
 /**
  * Retries retryable HTTP failures with a capped exponential backoff.
+ *
+ * The policy holds no per-call state, so one instance can serve nested or concurrent calls.
+ * `maxElapsedMs` is a deadline measured on the injected clock from the start of `send()`:
+ * it covers request time and backoff, and no retry is scheduled whose sleep would end past it.
  */
 final class RetryPolicy implements RetryPolicyInterface
 {
     private const int MAX_BACKOFF_MS = 120_000;
-
-    private int $spentMs = 0;
 
     public function __construct(
         private readonly int $maxRetry,
@@ -48,28 +51,70 @@ final class RetryPolicy implements RetryPolicyInterface
         }
     }
 
+    public static function fromOptions(
+        RetryOptions $options,
+        Sleeper $sleeper,
+        ClockInterface $clock,
+        Randomizer $randomizer,
+        SdkTelemetry $telemetry = new SdkTelemetry(),
+    ): self {
+        return new self(
+            $options->maxRetry,
+            $options->minWaitMs,
+            $sleeper,
+            $clock,
+            $randomizer,
+            maxElapsedMs: $options->maxElapsedMs,
+            maxDelayMs: $options->maxDelayMs,
+            telemetry: $telemetry,
+        );
+    }
+
     /**
      * @param callable(): ResponseInterface $send
      */
     #[\Override]
-    public function send(
-        callable $send,
-        string $method,
-        string $endpoint,
-        ?string $storeId = null,
-        ?RetryOptions $retry = null,
-        bool $idempotent = true,
-    ): ResponseInterface {
+    public function send(callable $send, RequestContext $context, ?RetryOptions $retry = null): ResponseInterface
+    {
         $maxRetry = $retry !== null ? $retry->maxRetry : $this->maxRetry;
         $minWaitMs = $retry !== null ? $retry->minWaitMs : $this->minWaitMs;
         $maxElapsedMs = $retry !== null ? $retry->maxElapsedMs : $this->maxElapsedMs;
         $maxDelayMs = $retry !== null ? $retry->maxDelayMs : $this->maxDelayMs;
-        $this->spentMs = 0;
+        $startedMs = $this->nowMs();
+        $deadlineMs = $startedMs + $maxElapsedMs;
         $attempt = 0;
 
         while (true) {
-            $response = $this->trySend($send, $method, $endpoint, $attempt, $maxRetry, $idempotent, $minWaitMs, $maxDelayMs, $maxElapsedMs);
-            if ($response === null) {
+            try {
+                $response = $send();
+            } catch (NetworkExceptionInterface $exception) {
+                $response = $exception;
+            } catch (ClientExceptionInterface $exception) {
+                $this->finished($context, null, $attempt, $startedMs, RequestOutcome::NetworkError);
+
+                throw new FgaNetworkException(
+                    sprintf('OpenFGA API request failed (%s %s).', $context->method, $context->endpoint),
+                    $context->method,
+                    $context->endpoint,
+                    $exception,
+                );
+            }
+
+            if ($response instanceof NetworkExceptionInterface) {
+                if (
+                    !$context->idempotent
+                    || $attempt >= $maxRetry
+                    || !$this->sleepBeforeRetry(null, $attempt, $minWaitMs, $maxDelayMs, $deadlineMs, $context)
+                ) {
+                    $this->finished($context, null, $attempt, $startedMs, RequestOutcome::NetworkError);
+
+                    throw new FgaNetworkException(
+                        sprintf('OpenFGA API request failed after retries (%s %s).', $context->method, $context->endpoint),
+                        $context->method,
+                        $context->endpoint,
+                        $response,
+                    );
+                }
                 ++$attempt;
 
                 continue;
@@ -77,71 +122,28 @@ final class RetryPolicy implements RetryPolicyInterface
 
             $statusCode = $response->getStatusCode();
             if ($statusCode >= 200 && $statusCode < 300) {
-                $this->telemetry->requestFinished($method, $endpoint, $statusCode, $attempt + 1);
+                $this->finished($context, $statusCode, $attempt, $startedMs, RequestOutcome::Success);
 
                 return $response;
             }
 
             $retryAfterMs = RetryAfter::delayMs($response, $this->clock);
-            $retryable = $this->isRetryableStatus($statusCode, $idempotent);
-            if (!$retryable || $attempt >= $maxRetry) {
-                $this->telemetry->requestFinished($method, $endpoint, $statusCode, $attempt + 1);
+            if (
+                !$this->isRetryableStatus($statusCode, $context->idempotent)
+                || $attempt >= $maxRetry
+                || !$this->sleepBeforeRetry($retryAfterMs, $attempt, $minWaitMs, $maxDelayMs, $deadlineMs, $context)
+            ) {
+                $this->finished($context, $statusCode, $attempt, $startedMs, RequestOutcome::HttpError);
 
-                throw $this->errorMapper->map($method, $endpoint, $storeId, $response, $retryAfterMs);
-            }
-
-            if (!$this->sleepBeforeRetry($retryAfterMs, $attempt, $minWaitMs, $maxDelayMs, $maxElapsedMs, $method, $endpoint)) {
-                $this->telemetry->requestFinished($method, $endpoint, $statusCode, $attempt + 1);
-
-                throw $this->errorMapper->map($method, $endpoint, $storeId, $response, $retryAfterMs);
+                throw $this->errorMapper->map($context->method, $context->endpoint, $context->storeId, $response, $retryAfterMs);
             }
             ++$attempt;
         }
     }
 
-    /**
-     * @param callable(): ResponseInterface $send
-     */
-    private function trySend(
-        callable $send,
-        string $method,
-        string $endpoint,
-        int $attempt,
-        int $maxRetry,
-        bool $idempotent,
-        int $minWaitMs,
-        int $maxDelayMs,
-        int $maxElapsedMs,
-    ): ?ResponseInterface {
-        try {
-            return $send();
-        } catch (NetworkExceptionInterface $exception) {
-            if (!$idempotent || $attempt >= $maxRetry) {
-                throw new FgaNetworkException(
-                    sprintf('OpenFGA API request failed after retries (%s %s).', $method, $endpoint),
-                    $method,
-                    $endpoint,
-                    $exception,
-                );
-            }
-            if (!$this->sleepBeforeRetry(null, $attempt, $minWaitMs, $maxDelayMs, $maxElapsedMs, $method, $endpoint)) {
-                throw new FgaNetworkException(
-                    sprintf('OpenFGA API request failed after retries (%s %s).', $method, $endpoint),
-                    $method,
-                    $endpoint,
-                    $exception,
-                );
-            }
-
-            return null;
-        } catch (ClientExceptionInterface $exception) {
-            throw new FgaNetworkException(
-                sprintf('OpenFGA API request failed (%s %s).', $method, $endpoint),
-                $method,
-                $endpoint,
-                $exception,
-            );
-        }
+    private function finished(RequestContext $context, ?int $statusCode, int $attempt, int $startedMs, RequestOutcome $outcome): void
+    {
+        $this->telemetry->requestFinished($context, $statusCode, $attempt + 1, $this->nowMs() - $startedMs, $outcome);
     }
 
     private function isRetryableStatus(int $statusCode, bool $idempotent): bool
@@ -161,17 +163,15 @@ final class RetryPolicy implements RetryPolicyInterface
         int $attempt,
         int $minWaitMs,
         int $maxDelayMs,
-        int $maxElapsedMs,
-        string $method,
-        string $endpoint,
+        int $deadlineMs,
+        RequestContext $context,
     ): bool {
         $delayMs = $this->delayMs($retryAfterMs, $attempt, $minWaitMs, $maxDelayMs);
-        if ($this->spentMs + $delayMs > $maxElapsedMs) {
+        if ($this->nowMs() + $delayMs > $deadlineMs) {
             return false;
         }
 
-        $this->spentMs += $delayMs;
-        $this->telemetry->retryScheduled($method, $endpoint, $attempt + 1, $delayMs);
+        $this->telemetry->retryScheduled($context, $attempt + 1, $delayMs);
         $this->sleeper->sleepMs($delayMs);
 
         return true;
@@ -191,5 +191,10 @@ final class RetryPolicy implements RetryPolicyInterface
         }
 
         return min($delayMs, $maxDelayMs);
+    }
+
+    private function nowMs(): int
+    {
+        return (int) $this->clock->now()->format('Uv');
     }
 }

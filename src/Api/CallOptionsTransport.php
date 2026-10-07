@@ -6,7 +6,6 @@ namespace Curentis\OpenFga\Api;
 
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Http\TransportInterface;
-use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 final class CallOptionsTransport implements TransportInterface
@@ -64,29 +63,5 @@ final class CallOptionsTransport implements TransportInterface
             $retry ?? $this->retry,
             $idempotent,
         );
-    }
-
-    #[\Override]
-    public function sendAll(array $requests, int $maxParallel, ?string $storeId = null): array
-    {
-        return $this->inner->sendAll($requests, $maxParallel, $storeId);
-    }
-
-    #[\Override]
-    public function supportsParallel(): bool
-    {
-        return $this->inner->supportsParallel();
-    }
-
-    #[\Override]
-    public function buildRequest(
-        string $method,
-        string $pathTemplate,
-        array $pathParams = [],
-        array $query = [],
-        mixed $body = null,
-        array $requestHeaders = [],
-    ): RequestInterface {
-        return $this->inner->buildRequest($method, $pathTemplate, $pathParams, $query, $body, $requestHeaders);
     }
 }

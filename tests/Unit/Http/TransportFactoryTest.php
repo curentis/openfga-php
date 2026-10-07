@@ -9,16 +9,20 @@ use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Exception\FgaApiInternalException;
 use Curentis\OpenFga\Http\ConcurrentSenderInterface;
 use Curentis\OpenFga\Http\RetryPolicy;
+use Curentis\OpenFga\Http\TransportCall;
 use Curentis\OpenFga\Http\TransportFactory;
+use Curentis\OpenFga\Observability\RequestFinished;
+use Curentis\OpenFga\Observability\SdkTelemetry;
 use Curentis\OpenFga\Tests\Support\FakeSleeper;
 use Curentis\OpenFga\Tests\Support\FrozenClock;
+use Curentis\OpenFga\Tests\Support\ManualClock;
+use Curentis\OpenFga\Tests\Support\RecordingDispatcher;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Psr\Http\Message\UriInterface;
 use Random\Engine\Mt19937;
@@ -142,15 +146,25 @@ final class TransportFactoryTest extends TestCase
         self::assertCount(1, $sleeper->sleptMilliseconds);
     }
 
-    public function testCreateUsesTheConfiguredConcurrentSender(): void
+    public function testCreatePassesTheConcurrentSenderTelemetryAndClock(): void
     {
         $mock = new MockClient();
+        $clock = new ManualClock();
+        $dispatcher = new RecordingDispatcher();
         $transport = TransportFactory::create(
-            new ClientConfiguration(apiUrl: 'http://localhost:8080', httpClient: $mock),
-            concurrentSender: new FlagConcurrentSender(),
+            new ClientConfiguration(
+                apiUrl: 'http://localhost:8080',
+                httpClient: $mock,
+                telemetry: new SdkTelemetry(dispatcher: $dispatcher),
+            ),
+            $clock,
+            concurrentSender: new FlagConcurrentSender($clock),
         );
 
-        self::assertTrue($transport->supportsParallel());
+        self::assertSame([['parallel' => true]], $transport->sendJsonAll([new TransportCall('GET', '/stores')], 2));
+        self::assertCount(0, $mock->getRequests());
+        self::assertInstanceOf(RequestFinished::class, $dispatcher->events[0]);
+        self::assertSame(30, $dispatcher->events[0]->durationMs);
     }
 
     public function testCreateKeepsAnInjectedRetryPolicy(): void
@@ -211,20 +225,13 @@ final class MarkingUriFactory implements UriFactoryInterface
 
 final class FlagConcurrentSender implements ConcurrentSenderInterface
 {
-    #[\Override]
-    public function supportsParallel(): bool
-    {
-        return true;
-    }
+    public function __construct(private readonly ManualClock $clock) {}
 
-    /**
-     * @param list<RequestInterface> $requests
-     *
-     * @return list<ResponseInterface>
-     */
     #[\Override]
     public function send(array $requests, int $maxParallel): array
     {
-        return [];
+        $this->clock->advanceMs(30);
+
+        return [new Response(200, [], '{"parallel":true}')];
     }
 }

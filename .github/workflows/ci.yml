@@ -32,6 +32,10 @@ jobs:
           # prefer-lowest dev-toolchain (Psalm/Amp) is not PHP 8.5-clean; locked deps cover 8.5.
           - php: "8.5"
             deps: lowest
+        include:
+          # The lock pins Guzzle 7; this cell runs the concurrent sender against Guzzle 8.
+          - php: "8.4"
+            deps: guzzle8
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
@@ -52,17 +56,26 @@ jobs:
         run: composer install --prefer-dist --no-progress
       - if: matrix.deps == 'lowest'
         run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-progress
+      - if: matrix.deps == 'guzzle8'
+        run: |
+          composer install --prefer-dist --no-progress
+          composer update guzzlehttp/guzzle --with-all-dependencies --prefer-dist --no-progress
+          composer show guzzlehttp/guzzle | grep -E '^versions : \* 8\.'
       - run: composer audit --locked --abandoned=ignore
       - run: composer validate --strict
       - run: composer normalize --dry-run
       - run: composer workflows
       - run: composer cs
-      - run: composer phpstan
-      - run: composer psalm
+      # Guzzle 8's promise generics are stricter than 7's; static analysis runs on the locked Guzzle 7 cells.
+      - if: matrix.deps != 'guzzle8'
+        run: composer phpstan
+      - if: matrix.deps != 'guzzle8'
+        run: composer psalm
       - run: composer codegen:check
       - run: composer test:architecture
       - run: composer test:unit
       - run: composer test:contract
+      - run: composer ignore-budget
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
         run: composer test:unit:coverage
       - if: matrix.php == '8.3' && matrix.deps == 'locked'
@@ -89,6 +102,8 @@ jobs:
         openfga: ["v1.10.0", "v1.21.0"]
     env:
       FGA_API_URL: http://localhost:8080
+      FGA_PRESHARED_API_URL: http://localhost:8081
+      FGA_PRESHARED_KEY: ci-preshared-key
       FGA_REQUIRE_SERVER: "1"
       OPENFGA_VERSION: ${{ matrix.openfga }}
     steps:
@@ -107,12 +122,18 @@ jobs:
       - name: Start OpenFGA
         run: |
           docker run -d --name openfga -p 8080:8080 "openfga/openfga:${OPENFGA_VERSION}" run --playground-enabled=false
-          for i in $(seq 1 60); do curl -fsS http://localhost:8080/healthz && exit 0; sleep 1; done
-          docker logs openfga
-          exit 1
+          docker run -d --name openfga-preshared -p 8081:8080 "openfga/openfga:${OPENFGA_VERSION}" run \
+            --playground-enabled=false --authn-method=preshared --authn-preshared-keys="${FGA_PRESHARED_KEY}"
+          for url in http://localhost:8080 http://localhost:8081; do
+            ready=0
+            for i in $(seq 1 60); do curl -fsS "$url/healthz" && ready=1 && break; sleep 1; done
+            if [ "$ready" != 1 ]; then docker logs openfga; docker logs openfga-preshared; exit 1; fi
+          done
       - run: composer test:integration
       - if: failure()
-        run: docker logs openfga
+        run: |
+          docker logs openfga
+          docker logs openfga-preshared
 
   coverage:
     name: coverage

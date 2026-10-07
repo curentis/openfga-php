@@ -7,6 +7,7 @@ namespace Curentis\OpenFga\Tests\Unit\Credentials;
 use Curentis\OpenFga\Credentials\ClientAssertion;
 use Curentis\OpenFga\Credentials\ClientAssertionJwt;
 use Curentis\OpenFga\Credentials\IssuerUrl;
+use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Tests\Support\RsaPrivateKeyFixture;
 use PHPUnit\Framework\TestCase;
 
@@ -76,7 +77,7 @@ final class ClientAssertionJwtTest extends TestCase
     {
         $method = new \ReflectionMethod(ClientAssertionJwt::class, 'requireNonEmptyBinaryString');
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(FgaValidationException::class);
         $this->expectExceptionMessage('empty client assertion signature');
         $method->invoke(null, '');
     }

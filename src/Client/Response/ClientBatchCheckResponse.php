@@ -7,7 +7,7 @@ namespace Curentis\OpenFga\Client\Response;
 final readonly class ClientBatchCheckResponse
 {
     /**
-     * @param list<ClientBatchCheckItemResult> $results in the same order as the input checks
+     * @param list<ClientBatchCheckItemResult> $results match by `correlationId` or `check`; custom runners need not keep input order
      */
     public function __construct(
         public array $results,

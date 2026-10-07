@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Curentis\OpenFga\Tests\Unit\Client;
 
+use Curentis\OpenFga\Api\CallOptionsTransport;
 use Curentis\OpenFga\Client\BatchCheckRunner;
 use Curentis\OpenFga\Client\Options\BatchCheckOptions;
 use Curentis\OpenFga\Client\Options\RetryOptions;
 use Curentis\OpenFga\Client\Request\ClientBatchCheckItem;
+use Curentis\OpenFga\Exception\FgaApiValidationException;
 use Curentis\OpenFga\Exception\FgaValidationException;
 use Curentis\OpenFga\Http\ConcurrentSenderInterface;
 use Curentis\OpenFga\Tests\Support\MockTransportTestCase;
 use Http\Mock\Client as MockClient;
 use Nyholm\Psr7\Response;
+use Psr\Http\Message\ResponseInterface;
 
 final class BatchCheckRunnerTest extends MockTransportTestCase
 {
@@ -200,7 +203,67 @@ final class BatchCheckRunnerTest extends MockTransportTestCase
         self::assertTrue($response->results[0]->result->allowed);
     }
 
-    private function parallelTransport(ConcurrentSenderInterface $sender): \Curentis\OpenFga\Http\Transport
+    public function testParallelFailuresUseTheCallSiteRetryOptions(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(503, [], '{}'));
+        $mock->addResponse(new Response(200, [], '{"result":{"c1":{"allowed":true}}}'));
+        $sender = new CannedParallelSender(new Response(500, [], '{}'));
+        $runner = new BatchCheckRunner($this->openFgaApi(new MockClient()), $this->parallelTransport($sender, $mock));
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            [new ClientBatchCheckItem('user:u', 'viewer', 'doc:1', correlationId: 'c1')],
+            new BatchCheckOptions(maxParallelRequests: 2),
+            null,
+            null,
+            [],
+            new RetryOptions(maxRetry: 1, minWaitMs: 1),
+        );
+
+        self::assertCount(2, $mock->getRequests());
+        self::assertTrue($response->results[0]->result->allowed);
+    }
+
+    public function testParallelValidationErrorsKeepTheirType(): void
+    {
+        $sender = new CannedParallelSender(new Response(400, [], '{"code":"validation_error","message":"bad type"}'));
+        $runner = new BatchCheckRunner($this->openFgaApi(new MockClient()), $this->parallelTransport($sender));
+
+        $this->expectException(FgaApiValidationException::class);
+        $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            [new ClientBatchCheckItem('user:u', 'viewer', 'doc:1', correlationId: 'c1')],
+            new BatchCheckOptions(maxParallelRequests: 2),
+            null,
+            null,
+            [],
+        );
+    }
+
+    public function testATransportWithoutTheParallelCapabilityUsesTheApi(): void
+    {
+        $mock = new MockClient();
+        $mock->addResponse(new Response(200, [], '{"result":{"c1":{"allowed":true}}}'));
+        $runner = new BatchCheckRunner(
+            $this->openFgaApi($mock),
+            new CallOptionsTransport($this->parallelTransport(new CannedParallelSender()), null),
+        );
+
+        $response = $runner->run(
+            '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+            [new ClientBatchCheckItem('user:u', 'viewer', 'doc:1', correlationId: 'c1')],
+            new BatchCheckOptions(maxParallelRequests: 2),
+            null,
+            null,
+            [],
+        );
+
+        self::assertCount(1, $mock->getRequests());
+        self::assertTrue($response->results[0]->result->allowed);
+    }
+
+    private function parallelTransport(ConcurrentSenderInterface $sender, ?MockClient $http = null): \Curentis\OpenFga\Http\Transport
     {
         $factories = new \Nyholm\Psr7\Factory\Psr17Factory();
         $retry = new \Curentis\OpenFga\Http\RetryPolicy(
@@ -214,7 +277,7 @@ final class BatchCheckRunnerTest extends MockTransportTestCase
         return new \Curentis\OpenFga\Http\Transport(
             'http://localhost:8080',
             [],
-            new MockClient(),
+            $http ?? new MockClient(),
             $factories,
             $factories,
             $factories,
@@ -234,11 +297,7 @@ final class CannedParallelSender implements ConcurrentSenderInterface
     /** @var list<int> */
     public array $parallelism = [];
 
-    #[\Override]
-    public function supportsParallel(): bool
-    {
-        return true;
-    }
+    public function __construct(private readonly ?ResponseInterface $override = null) {}
 
     #[\Override]
     public function send(array $requests, int $maxParallel): array
@@ -246,6 +305,11 @@ final class CannedParallelSender implements ConcurrentSenderInterface
         $this->parallelism[] = $maxParallel;
         $responses = [];
         foreach ($requests as $request) {
+            if ($this->override !== null) {
+                $responses[] = $this->override;
+
+                continue;
+            }
             $decoded = json_decode((string) $request->getBody(), true);
             $result = [];
             if (is_array($decoded) && isset($decoded['checks']) && is_array($decoded['checks'])) {

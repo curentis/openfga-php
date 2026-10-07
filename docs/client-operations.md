@@ -37,6 +37,8 @@ $fga->write(
 
 Conflict behavior (`on_duplicate`, `on_missing`) is configured via `ConflictOptions` on `WriteOptions`.
 
+Non-transactional chunks send deletes before writes, so a delete and re-write of the same tuple ends with the tuple written.
+
 ## Checks and batch check
 
 Single check:
@@ -107,6 +109,8 @@ foreach ($fga->streamedListObjects(new ListObjectsBody(
 }
 ```
 
+`streamedListObjects()` validates its arguments and sends the request when you call it; the returned generator only reads the NDJSON body.
+
 Pass `ConsistencyPreference` on expand, list objects, list users, check, and batch check when you need stronger read consistency.
 
 ## Per-request options
@@ -137,6 +141,10 @@ $response = $fga->executeApiRequest(
 foreach ($fga->executeStreamedApiRequest('POST', '/some/streamed/path', ...) as $line) {
     // NDJSON object per line
 }
+
+$fga->executeApiRequest('POST', '/stores/{store_id}/custom-write', ['store_id' => $storeId], body: $payload, idempotent: false);
 ```
+
+Retries follow the method and path: GET, HEAD, OPTIONS, and POST to read-only endpoints (`check`, `batch-check`, `expand`, `list-objects`, `streamed-list-objects`, `list-users`, `read`) retry server errors and network failures. Everything else retries only 429. Pass `idempotent:` to override. Path parameters are URL-encoded and may not be `.` or `..`.
 
 Lower-level access: depend on `OpenFgaApiInterface` or `TransportInterface` when building custom stacks (see [Customization](customization.md)).

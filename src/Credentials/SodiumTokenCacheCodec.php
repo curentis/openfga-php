@@ -22,16 +22,16 @@ final class SodiumTokenCacheCodec implements TokenCacheCodec
     }
 
     #[\Override]
-    public function encode(string $accessToken, int $expiresAtEpoch): string
+    public function encode(AccessToken $token): string
     {
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-        $cipher = sodium_crypto_secretbox($this->json->encode($accessToken, $expiresAtEpoch), $nonce, $this->key);
+        $cipher = sodium_crypto_secretbox($this->json->encode($token), $nonce, $this->key);
 
         return base64_encode($nonce . $cipher);
     }
 
     #[\Override]
-    public function decode(string $payload): ?array
+    public function decode(string $payload): ?AccessToken
     {
         $raw = base64_decode($payload, true);
         // An empty ciphertext also fails secretbox_open, so `<=` and `<` both yield null.

@@ -30,6 +30,20 @@ if ($start === false) {
     exit(1);
 }
 
+$unreleasedHeading = '## [Unreleased]';
+$unreleasedStart = strpos($changelog, $unreleasedHeading);
+if ($unreleasedStart !== false) {
+    $unreleased = substr($changelog, $unreleasedStart + strlen($unreleasedHeading));
+    $unreleasedEnd = strpos($unreleased, "\n## ");
+    if ($unreleasedEnd !== false) {
+        $unreleased = substr($unreleased, 0, $unreleasedEnd);
+    }
+    if (trim($unreleased) !== '') {
+        fwrite(STDERR, "CHANGELOG.md still has entries under {$unreleasedHeading}. Move them into {$heading}.\n");
+        exit(1);
+    }
+}
+
 $arguments = $_SERVER['argv'] ?? null;
 if (!is_array($arguments)) {
     $arguments = [];
@@ -40,7 +54,8 @@ if (!$notesOnly) {
     exit(0);
 }
 
-$body = substr($changelog, $start + strlen($heading));
+$headingLineEnd = strpos($changelog, "\n", $start);
+$body = $headingLineEnd === false ? '' : substr($changelog, $headingLineEnd + 1);
 $next = strpos($body, "\n## ");
 if ($next !== false) {
     $body = substr($body, 0, $next);

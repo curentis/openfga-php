@@ -95,12 +95,13 @@ final class WriteRunner implements WriteRunnerInterface
      */
     private function chunkTuples(ClientWriteRequest $request, int $maxPerChunk): array
     {
+        // Deletes go first so a delete-then-write of the same tuple (a replace) leaves the tuple written.
         $chunks = [];
-        foreach (array_chunk($request->writes, $maxPerChunk) as $writeChunk) {
-            $chunks[] = new ClientWriteRequest(writes: $writeChunk);
-        }
         foreach (array_chunk($request->deletes, $maxPerChunk) as $deleteChunk) {
             $chunks[] = new ClientWriteRequest(deletes: $deleteChunk);
+        }
+        foreach (array_chunk($request->writes, $maxPerChunk) as $writeChunk) {
+            $chunks[] = new ClientWriteRequest(writes: $writeChunk);
         }
 
         return $chunks;
@@ -112,11 +113,11 @@ final class WriteRunner implements WriteRunnerInterface
     private function successResults(ClientWriteRequest $chunk): array
     {
         $results = [];
-        foreach ($chunk->writes as $tuple) {
-            $results[] = $this->tupleResult($tuple, 'write', true, null);
-        }
         foreach ($chunk->deletes as $tuple) {
             $results[] = $this->tupleResult($tuple, 'delete', true, null);
+        }
+        foreach ($chunk->writes as $tuple) {
+            $results[] = $this->tupleResult($tuple, 'write', true, null);
         }
 
         return $results;
@@ -128,11 +129,11 @@ final class WriteRunner implements WriteRunnerInterface
     private function failureResults(ClientWriteRequest $chunk, \Throwable $error): array
     {
         $results = [];
-        foreach ($chunk->writes as $tuple) {
-            $results[] = $this->tupleResult($tuple, 'write', false, $error);
-        }
         foreach ($chunk->deletes as $tuple) {
             $results[] = $this->tupleResult($tuple, 'delete', false, $error);
+        }
+        foreach ($chunk->writes as $tuple) {
+            $results[] = $this->tupleResult($tuple, 'write', false, $error);
         }
 
         return $results;
