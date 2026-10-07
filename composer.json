@@ -37,7 +37,7 @@
         "ergebnis/composer-normalize": "^2.44",
         "friendsofphp/php-cs-fixer": "^3.64",
         "guzzlehttp/guzzle": "^7.9 || ^8.0",
-        "infection/infection": "^0.31",
+        "infection/infection": "^0.31 || ^0.35",
         "league/openapi-psr7-validator": "^0.22 || ^0.24",
         "nyholm/psr7": "^1.8",
         "php-http/mock-client": "^1.6",
