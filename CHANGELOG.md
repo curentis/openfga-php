@@ -23,7 +23,7 @@ Initial release of the PHP SDK for [OpenFGA](https://openfga.dev). Requires PHP 
 - Optional PSR-3 logging and PSR-14 events (`RequestFinished`, `RetryScheduled`, `TokenRefreshed`). `RequestFinished` carries the route template, duration, and a `RequestOutcome`. A failing logger or listener never breaks the request.
 - Extension points: `OpenFgaClientFactoryInterface`, `ClientComponentFactoryInterface` (write and batch-check runners, consistency body factory), `OpenFgaApiInterface`, `TransportInterface`, `ParallelTransportInterface`, and `RetryPolicyInterface` with `RequestContext`.
 - Typed `Model\*` classes generated from the vendored OpenFGA OpenAPI spec. Unknown enum values from newer servers are kept as strings.
-- User guides under [docs/](docs/README.md) and runnable [examples/](examples/README.md).
+- User guides under [docs/](https://github.com/curentis/openfga-php/tree/main/docs) and runnable [examples/](https://github.com/curentis/openfga-php/tree/main/examples).
 
 [Unreleased]: https://github.com/curentis/openfga-php/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/curentis/openfga-php/releases/tag/v1.0.0
