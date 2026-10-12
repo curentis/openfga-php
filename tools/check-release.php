@@ -56,9 +56,8 @@ if (!$notesOnly) {
 
 $headingLineEnd = strpos($changelog, "\n", $start);
 $body = $headingLineEnd === false ? '' : substr($changelog, $headingLineEnd + 1);
-$next = strpos($body, "\n## ");
-if ($next !== false) {
-    $body = substr($body, 0, $next);
+if (preg_match('/^(## |\[[^\]]+\]: )/m', $body, $match, PREG_OFFSET_CAPTURE) === 1) {
+    $body = substr($body, 0, $match[0][1]);
 }
 
 echo trim($body) . "\n";
