@@ -9,6 +9,8 @@
 /.editorconfig export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /phpstan.neon.dist export-ignore
+/phpstan-model-baseline.neon export-ignore
+/infection.json.dist export-ignore
 /psalm.xml.dist export-ignore
 /phpunit.xml.dist export-ignore
 /codecov.yml export-ignore
